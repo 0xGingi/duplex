@@ -17,6 +17,24 @@ export default function TabItem({ tab }: TabItemProps) {
     removeTab(tab.id)
   }
 
+  const handleDeleteBranchWorkspace = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (tab.isOriginal) return
+
+    const confirmed = window.confirm(`Delete workspace for branch "${tab.branch}"?\n\nThis removes the copied folder at:\n${tab.path}`)
+    if (!confirmed) return
+
+    await window.electronAPI.ptyKill(tab.id)
+    removeTab(tab.id)
+
+    try {
+      await window.electronAPI.deleteProjectCopy(tab.path)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.alert(`Closed tab, but failed to delete workspace:\n${message}`)
+    }
+  }
+
   return (
     <div
       onClick={() => setActiveTab(tab.id)}
@@ -42,16 +60,28 @@ export default function TabItem({ tab }: TabItemProps) {
       </div>
 
       {/* Close button */}
-      {!tab.isOriginal && (
+      <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+        {!tab.isOriginal && (
+          <button
+            onClick={handleDeleteBranchWorkspace}
+            className="p-0.5 hover:bg-bg-hover rounded"
+            title="Delete branch workspace copy"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="text-text-muted hover:text-red">
+              <path d="M4 1h4l.6 1H11v1H1V2h2.4L4 1zm-1 3h1v6H3V4zm2 0h1v6H5V4zm2 0h1v6H7V4zm2 0h1v6H9V4z" />
+            </svg>
+          </button>
+        )}
         <button
           onClick={handleClose}
-          className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-bg-hover rounded transition-opacity"
+          className="p-0.5 hover:bg-bg-hover rounded"
+          title="Close tab"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="text-text-muted hover:text-text-primary">
             <path d="M2 1L6 5L10 1L11 2L7 6L11 10L10 11L6 7L2 11L1 10L5 6L1 2Z" />
           </svg>
         </button>
-      )}
+      </div>
     </div>
   )
 }

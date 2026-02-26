@@ -5,6 +5,11 @@ import { useGitStatus } from './useGitStatus.ts'
 import ChangedFileList from './ChangedFileList.tsx'
 import DiffViewer from './DiffViewer.tsx'
 
+function formatActionError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error)
+  return raw.replace(/^Error invoking remote method '[^']+': Error:\s*/, '').trim()
+}
+
 export default function RightSidebar() {
   useGitStatus()
 
@@ -59,7 +64,7 @@ export default function RightSidebar() {
       await refreshStatus()
       setActionInfo(successMessage)
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Git action failed')
+      setActionError(formatActionError(error) || 'Git action failed')
     } finally {
       setBusyAction(null)
     }
@@ -159,7 +164,7 @@ export default function RightSidebar() {
           tabPath={activeTab.path}
           staged={false}
           onStatusChange={refreshStatus}
-          onError={setActionError}
+          onError={(message) => setActionError(formatActionError(message))}
         />
 
         <div className="px-3 py-2 border-y border-border bg-bg-tertiary/40">
@@ -186,7 +191,7 @@ export default function RightSidebar() {
           tabPath={activeTab.path}
           staged={true}
           onStatusChange={refreshStatus}
-          onError={setActionError}
+          onError={(message) => setActionError(formatActionError(message))}
         />
 
         <div className="px-3 py-3 border-t border-border bg-bg-tertiary/30">

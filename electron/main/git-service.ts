@@ -5,6 +5,30 @@ import { isSshProjectPath, parseSshProjectPath, runSsh, shQuote } from './ssh-ut
 
 const exec = promisify(execFile)
 
+interface ExecLikeError extends Error {
+  stdout?: string | Buffer
+  stderr?: string | Buffer
+}
+
+function normalizeExecOutput(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (Buffer.isBuffer(value)) return value.toString('utf8').trim()
+  return ''
+}
+
+function formatGitError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error)
+  }
+
+  const execError = error as ExecLikeError
+  const stderr = normalizeExecOutput(execError.stderr)
+  const stdout = normalizeExecOutput(execError.stdout)
+  const details = [stderr, stdout].filter(Boolean).join('\n')
+
+  return details || error.message
+}
+
 async function git(cwd: string, ...args: string[]): Promise<string> {
   if (isSshProjectPath(cwd)) {
     const target = parseSshProjectPath(cwd)
@@ -14,11 +38,19 @@ async function git(cwd: string, ...args: string[]): Promise<string> {
 
     const gitArgs = args.map(shQuote).join(' ')
     const remoteCommand = `cd ${shQuote(target.remotePath)} && GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git ${gitArgs}`
-    return runSsh(target.host, remoteCommand)
+    try {
+      return await runSsh(target.host, remoteCommand)
+    } catch (error) {
+      throw new Error(formatGitError(error))
+    }
   }
 
-  const { stdout } = await exec('git', args, { cwd, maxBuffer: 10 * 1024 * 1024 })
-  return stdout.trim()
+  try {
+    const { stdout } = await exec('git', args, { cwd, maxBuffer: 10 * 1024 * 1024 })
+    return stdout.trim()
+  } catch (error) {
+    throw new Error(formatGitError(error))
+  }
 }
 
 export async function getBranch(cwd: string): Promise<string> {
