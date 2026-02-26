@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import TitleBar from './components/layout/TitleBar.tsx'
 import AppLayout from './components/layout/AppLayout.tsx'
 import LeftSidebar from './components/sidebar/LeftSidebar.tsx'
@@ -9,7 +9,7 @@ import { useTabStore } from './stores/useTabStore.ts'
 import type { Project, Tab, AppState } from './types/index.ts'
 
 function usePersistence() {
-  const project = useAppStore((s) => s.project)
+  const [hasRestored, setHasRestored] = useState(false)
   const setProject = useAppStore((s) => s.setProject)
   const sidebarWidth = useAppStore((s) => s.sidebarWidth)
   const gitPanelWidth = useAppStore((s) => s.gitPanelWidth)
@@ -29,77 +29,90 @@ function usePersistence() {
   // Restore state on mount
   useEffect(() => {
     const restore = async () => {
-      // Restore app state
-      const appState = await window.electronAPI.storeGet<AppState>('appState')
-      if (appState) {
-        if (appState.sidebarWidth) setSidebarWidth(appState.sidebarWidth)
-        if (appState.gitPanelWidth) setGitPanelWidth(appState.gitPanelWidth)
-        if (appState.gitPanelOpen !== undefined) setGitPanelOpen(appState.gitPanelOpen)
-        if (appState.bottomTerminalHeight) setBottomTerminalHeight(appState.bottomTerminalHeight)
-      }
+      try {
+        // Restore app state
+        const appState = await window.electronAPI.storeGet<AppState>('appState')
+        if (appState) {
+          if (appState.sidebarWidth) setSidebarWidth(appState.sidebarWidth)
+          if (appState.gitPanelWidth) setGitPanelWidth(appState.gitPanelWidth)
+          if (appState.gitPanelOpen !== undefined) setGitPanelOpen(appState.gitPanelOpen)
+          if (appState.bottomTerminalHeight) setBottomTerminalHeight(appState.bottomTerminalHeight)
+        }
 
-      // Restore project
-      const lastPath = await window.electronAPI.storeGet<string>('lastProjectPath')
-      if (lastPath) {
-        try {
-          const branch = await window.electronAPI.getGitBranch(lastPath)
-          const remote = await window.electronAPI.getGitRemote(lastPath)
-          const name = lastPath.split('/').pop() || lastPath
+        // Restore project
+        const lastPath = await window.electronAPI.storeGet<string>('lastProjectPath')
+        if (lastPath) {
+          try {
+            const branch = await window.electronAPI.getGitBranch(lastPath)
+            const remote = await window.electronAPI.getGitRemote(lastPath)
+            const name = lastPath.split('/').pop() || lastPath
 
-          const proj: Project = {
-            id: crypto.randomUUID(),
-            name,
-            path: lastPath,
-            branch,
-            remote,
-          }
-          setProject(proj)
+            const proj: Project = {
+              id: crypto.randomUUID(),
+              name,
+              path: lastPath,
+              branch,
+              remote,
+            }
+            setProject(proj)
 
-          // Restore tabs
-          const savedTabs = await window.electronAPI.storeGet<Tab[]>('tabs')
-          const savedActiveId = await window.electronAPI.storeGet<string>('activeTabId')
+            // Restore tabs
+            const savedTabs = await window.electronAPI.storeGet<Tab[]>('tabs')
+            const savedActiveId = await window.electronAPI.storeGet<string>('activeTabId')
 
-          if (savedTabs && savedTabs.length > 0) {
-            const restoredTabs: Tab[] = []
+            if (savedTabs && savedTabs.length > 0) {
+              const restoredTabs: Tab[] = []
 
-            for (const savedTab of savedTabs) {
-              const isOriginal = savedTab.isOriginal || savedTab.branch === branch
-              let tabPath = lastPath
+              for (const savedTab of savedTabs) {
+                const isOriginal = savedTab.isOriginal || savedTab.branch === branch
+                let tabPath = lastPath
 
-              if (!isOriginal) {
-                try {
-                  const existingBranch = await window.electronAPI.getGitBranch(savedTab.path)
-                  if (existingBranch === savedTab.branch) {
-                    tabPath = savedTab.path
-                  } else {
-                    tabPath = await window.electronAPI.duplicateProject(lastPath, savedTab.branch)
-                  }
-                } catch {
+                if (!isOriginal) {
                   try {
-                    tabPath = await window.electronAPI.duplicateProject(lastPath, savedTab.branch)
+                    const existingBranch = await window.electronAPI.getGitBranch(savedTab.path)
+                    if (existingBranch === savedTab.branch) {
+                      tabPath = savedTab.path
+                    } else {
+                      tabPath = await window.electronAPI.duplicateProject(lastPath, savedTab.branch)
+                    }
                   } catch {
-                    // Skip tabs we cannot restore.
-                    continue
+                    try {
+                      tabPath = await window.electronAPI.duplicateProject(lastPath, savedTab.branch)
+                    } catch {
+                      // Skip tabs we cannot restore.
+                      continue
+                    }
                   }
                 }
+
+                restoredTabs.push({
+                  ...savedTab,
+                  projectId: proj.id,
+                  path: tabPath,
+                  isOriginal,
+                })
               }
 
-              restoredTabs.push({
-                ...savedTab,
-                projectId: proj.id,
-                path: tabPath,
-                isOriginal,
-              })
-            }
-
-            if (restoredTabs.length > 0) {
-              setTabs(restoredTabs)
-              if (savedActiveId && restoredTabs.some((t) => t.id === savedActiveId)) {
-                setActiveTab(savedActiveId)
+              if (restoredTabs.length > 0) {
+                setTabs(restoredTabs)
+                if (savedActiveId && restoredTabs.some((t) => t.id === savedActiveId)) {
+                  setActiveTab(savedActiveId)
+                } else {
+                  setActiveTab(restoredTabs[0]!.id)
+                }
               } else {
-                setActiveTab(restoredTabs[0]!.id)
+                addTab({
+                  id: crypto.randomUUID(),
+                  projectId: proj.id,
+                  name: branch,
+                  branch,
+                  cliType: 'codex',
+                  path: lastPath,
+                  isOriginal: true,
+                })
               }
             } else {
+              // Create default tab
               addTab({
                 id: crypto.randomUUID(),
                 projectId: proj.id,
@@ -110,21 +123,12 @@ function usePersistence() {
                 isOriginal: true,
               })
             }
-          } else {
-            // Create default tab
-            addTab({
-              id: crypto.randomUUID(),
-              projectId: proj.id,
-              name: branch,
-              branch,
-              cliType: 'codex',
-              path: lastPath,
-              isOriginal: true,
-            })
+          } catch {
+            // Last project no longer accessible
           }
-        } catch {
-          // Last project no longer accessible
         }
+      } finally {
+        setHasRestored(true)
       }
     }
     restore()
@@ -133,21 +137,24 @@ function usePersistence() {
 
   // Persist state on change
   useEffect(() => {
+    if (!hasRestored) return
     window.electronAPI.storeSet('tabs', tabs)
-  }, [tabs])
+  }, [tabs, hasRestored])
 
   useEffect(() => {
-    if (activeTabId) window.electronAPI.storeSet('activeTabId', activeTabId)
-  }, [activeTabId])
+    if (!hasRestored) return
+    window.electronAPI.storeSet('activeTabId', activeTabId ?? undefined)
+  }, [activeTabId, hasRestored])
 
   useEffect(() => {
+    if (!hasRestored) return
     window.electronAPI.storeSet('appState', {
       sidebarWidth,
       gitPanelWidth,
       gitPanelOpen,
       bottomTerminalHeight,
     })
-  }, [sidebarWidth, gitPanelWidth, gitPanelOpen, bottomTerminalHeight])
+  }, [sidebarWidth, gitPanelWidth, gitPanelOpen, bottomTerminalHeight, hasRestored])
 }
 
 export default function App() {
