@@ -3,6 +3,11 @@ import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import type { CliType } from '../../types/index.ts'
 
+function formatActionError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error)
+  return raw.replace(/^Error invoking remote method '[^']+': Error:\s*/, '').trim()
+}
+
 export default function NewTabButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [branchName, setBranchName] = useState('')
@@ -71,7 +76,7 @@ export default function NewTabButton() {
       setSelectedBranch('')
       setIsOpen(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create branch')
+      setError(formatActionError(err) || 'Failed to create branch')
     } finally {
       setLoading(false)
     }

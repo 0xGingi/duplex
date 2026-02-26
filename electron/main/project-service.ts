@@ -1,6 +1,8 @@
 import { dialog, type BrowserWindow } from 'electron'
 import { cp, readdir, rm, stat } from 'fs/promises'
 import path from 'path'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { checkoutBranch, checkoutNewBranch } from './git-service.ts'
 import {
   formatSshProjectPath,
@@ -12,6 +14,7 @@ import {
 } from './ssh-utils.ts'
 
 const COPY_EXCLUDED_SEGMENTS = new Set(['node_modules', 'dist', 'dist-electron', 'out'])
+const exec = promisify(execFile)
 
 export async function selectProjectFolder(win: BrowserWindow): Promise<{ path: string; name: string } | null> {
   const result = await dialog.showOpenDialog(win, {
@@ -65,6 +68,16 @@ export async function duplicateProject(sourcePath: string, branchName: string): 
     })
   }
 
+  const destIsRepo = await isGitRepository(destPath)
+  if (!destIsRepo) {
+    if (exists) {
+      throw new Error(
+        `Cannot create branch workspace because destination already exists and is not a git repository:\n${destPath}\n\nDelete or rename that folder, then try again.`
+      )
+    }
+    throw new Error(`Failed to prepare branch workspace at ${destPath}: copied folder is not a git repository`)
+  }
+
   try {
     await checkoutBranch(destPath, branchName)
   } catch {
@@ -101,6 +114,23 @@ async function pathExists(targetPath: string): Promise<boolean> {
   try {
     await stat(targetPath)
     return true
+  } catch {
+    return false
+  }
+}
+
+async function isGitRepository(targetPath: string): Promise<boolean> {
+  try {
+    const { stdout } = await exec('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd: targetPath,
+      env: {
+        ...process.env,
+        GIT_DISCOVERY_ACROSS_FILESYSTEM: '1',
+      },
+      maxBuffer: 10 * 1024 * 1024,
+    })
+
+    return stdout.trim() === 'true'
   } catch {
     return false
   }

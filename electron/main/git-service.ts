@@ -46,7 +46,14 @@ async function git(cwd: string, ...args: string[]): Promise<string> {
   }
 
   try {
-    const { stdout } = await exec('git', args, { cwd, maxBuffer: 10 * 1024 * 1024 })
+    const { stdout } = await exec('git', args, {
+      cwd,
+      maxBuffer: 10 * 1024 * 1024,
+      env: {
+        ...process.env,
+        GIT_DISCOVERY_ACROSS_FILESYSTEM: '1',
+      },
+    })
     return stdout.trim()
   } catch (error) {
     throw new Error(formatGitError(error))
