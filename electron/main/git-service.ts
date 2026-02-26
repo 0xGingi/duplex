@@ -13,7 +13,7 @@ async function git(cwd: string, ...args: string[]): Promise<string> {
     }
 
     const gitArgs = args.map(shQuote).join(' ')
-    const remoteCommand = `cd ${shQuote(target.remotePath)} && git ${gitArgs}`
+    const remoteCommand = `cd ${shQuote(target.remotePath)} && GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git ${gitArgs}`
     return runSsh(target.host, remoteCommand)
   }
 

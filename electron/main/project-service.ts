@@ -34,7 +34,7 @@ export async function connectSshProject(
   if (!normalizedHost) throw new Error('SSH host is required')
   if (!normalizedPath) throw new Error('Remote path is required')
 
-  const checkCommand = `cd ${shQuote(normalizedPath)} && git rev-parse --is-inside-work-tree`
+  const checkCommand = `cd ${shQuote(normalizedPath)} && GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git rev-parse --is-inside-work-tree`
   const isRepo = await runSsh(normalizedHost, checkCommand)
   if (isRepo !== 'true') {
     throw new Error('Remote path is not a git repository')
@@ -91,7 +91,7 @@ if [ ! -d ${shQuote(`${destPath}/.git`)} ]; then
   cp -R ${shQuote(target.remotePath)} ${shQuote(destPath)}
   find ${shQuote(destPath)} -type d -name node_modules -prune -exec rm -rf {} +
 fi
-cd ${shQuote(destPath)} && (git checkout ${shQuote(branchName)} || git checkout -b ${shQuote(branchName)})
+cd ${shQuote(destPath)} && (GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout ${shQuote(branchName)} || GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout -b ${shQuote(branchName)})
 `
 
   await runSsh(target.host, command)

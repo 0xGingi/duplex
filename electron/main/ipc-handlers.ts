@@ -28,9 +28,24 @@ import { createPty, writePty, resizePty, killPty } from './pty-manager.ts'
 import store from './store.ts'
 import type { CliType } from '../../src/types/index.ts'
 
-export function registerIpcHandlers(win: BrowserWindow): void {
+type WindowGetter = () => BrowserWindow | null
+
+let handlersRegistered = false
+
+function getActiveWindow(getWindow: WindowGetter): BrowserWindow {
+  const win = getWindow()
+  if (!win || win.isDestroyed()) {
+    throw new Error('No active window')
+  }
+  return win
+}
+
+export function registerIpcHandlers(getWindow: WindowGetter): void {
+  if (handlersRegistered) return
+  handlersRegistered = true
+
   // Project
-  ipcMain.handle('project:select-folder', () => selectProjectFolder(win))
+  ipcMain.handle('project:select-folder', () => selectProjectFolder(getActiveWindow(getWindow)))
   ipcMain.handle('project:connect-ssh', (_e, host: string, remotePath: string) =>
     connectSshProject(host, remotePath)
   )
@@ -62,12 +77,14 @@ export function registerIpcHandlers(win: BrowserWindow): void {
   // PTY
   ipcMain.handle('pty:create', (_e, id: string, cwd: string, cliType?: CliType) => {
     try {
+      const win = getActiveWindow(getWindow)
       createPty(id, cwd, win, cliType)
       return { ok: true }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      const win = getWindow()
 
-      if (!win.isDestroyed()) {
+      if (win && !win.isDestroyed()) {
         win.webContents.send('pty:data', id, `\r\n[Failed to start terminal: ${message}]\r\n`)
         win.webContents.send('pty:exit', id, 1)
       }
@@ -84,13 +101,25 @@ export function registerIpcHandlers(win: BrowserWindow): void {
   ipcMain.handle('store:set', (_e, key: string, value: unknown) => store.set(key, value))
 
   // Window controls
-  ipcMain.on('window:minimize', () => win.minimize())
+  ipcMain.on('window:minimize', () => {
+    const win = getWindow()
+    if (win && !win.isDestroyed()) {
+      win.minimize()
+    }
+  })
   ipcMain.on('window:maximize', () => {
+    const win = getWindow()
+    if (!win || win.isDestroyed()) return
     if (win.isMaximized()) {
       win.unmaximize()
     } else {
       win.maximize()
     }
   })
-  ipcMain.on('window:close', () => win.close())
+  ipcMain.on('window:close', () => {
+    const win = getWindow()
+    if (win && !win.isDestroyed()) {
+      win.close()
+    }
+  })
 }

@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import type { Project } from '../../types/index.ts'
 
 export default function ProjectSelector() {
   const [error, setError] = useState('')
+  const [showSshForm, setShowSshForm] = useState(false)
+  const [sshHost, setSshHost] = useState('')
+  const [sshRemotePath, setSshRemotePath] = useState('')
   const project = useAppStore((s) => s.project)
   const setProject = useAppStore((s) => s.setProject)
   const addTab = useTabStore((s) => s.addTab)
@@ -50,16 +53,35 @@ export default function ProjectSelector() {
     }
   }
 
-  const handleSelectSsh = async () => {
+  const handleSelectSsh = () => {
     setError('')
-    const host = window.prompt('SSH host (e.g. user@server):')?.trim()
-    if (!host) return
-    const remotePath = window.prompt('Remote project path (absolute):')?.trim()
-    if (!remotePath) return
+    setShowSshForm(true)
+  }
+
+  const handleCancelSsh = () => {
+    setError('')
+    setShowSshForm(false)
+    setSshHost('')
+    setSshRemotePath('')
+  }
+
+  const handleConnectSsh = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError('')
+
+    const host = sshHost.trim()
+    const remotePath = sshRemotePath.trim()
+    if (!host || !remotePath) {
+      setError('SSH host and remote path are required')
+      return
+    }
 
     try {
       const result = await window.electronAPI.connectSshProject(host, remotePath)
       await openProject(result)
+      setShowSshForm(false)
+      setSshHost('')
+      setSshRemotePath('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect SSH project')
     }
@@ -88,12 +110,47 @@ export default function ProjectSelector() {
           Local
         </button>
         <button
-          onClick={() => void handleSelectSsh()}
+          onClick={handleSelectSsh}
           className="px-2 py-1 text-xs rounded bg-bg-tertiary border border-border text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
         >
           SSH
         </button>
       </div>
+
+      {showSshForm && (
+        <form className="mt-2 space-y-1.5" onSubmit={(event) => void handleConnectSsh(event)}>
+          <input
+            type="text"
+            value={sshHost}
+            onChange={(event) => setSshHost(event.target.value)}
+            placeholder="user@server"
+            className="w-full px-2 py-1 text-xs rounded bg-bg-tertiary border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+            autoFocus
+          />
+          <input
+            type="text"
+            value={sshRemotePath}
+            onChange={(event) => setSshRemotePath(event.target.value)}
+            placeholder="/absolute/remote/path"
+            className="w-full px-2 py-1 text-xs rounded bg-bg-tertiary border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+          />
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              type="submit"
+              className="px-2 py-1 text-xs rounded bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 transition-colors"
+            >
+              Connect
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelSsh}
+              className="px-2 py-1 text-xs rounded bg-bg-tertiary border border-border text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
       {error && (
         <div className="mt-2 text-xs text-red truncate" title={error}>

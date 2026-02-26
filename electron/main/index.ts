@@ -39,8 +39,6 @@ function createWindow() {
     },
   })
 
-  registerIpcHandlers(mainWindow)
-
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
   })
@@ -74,7 +72,10 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  registerIpcHandlers(() => mainWindow)
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   killAll()

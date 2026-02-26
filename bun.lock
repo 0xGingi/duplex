@@ -7,7 +7,6 @@
       "dependencies": {
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
-        "electron": "^40.6.1",
         "electron-store": "^11.0.2",
         "node-pty": "^1.1.0",
         "react": "^19.2.4",
@@ -21,6 +20,7 @@
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^5.1.4",
         "autoprefixer": "^10.4.27",
+        "electron": "^40.6.1",
         "electron-builder": "^26.8.1",
         "postcss": "^8.5.6",
         "tailwindcss": "^4.2.1",

@@ -56,11 +56,10 @@ export function createPty(
 
   if (remoteTarget) {
     setTimeout(() => {
-      const remoteExec = cliType
-        ? `exec ${shQuote(cliType === 'claude' ? 'claude' : 'codex')}`
-        : 'exec ${SHELL:-/bin/bash} -l'
-      const remoteCommand = `cd ${shQuote(remoteTarget.remotePath)} && ${remoteExec}`
-      const sshCommand = `ssh -t ${shQuote(remoteTarget.host)} ${shQuote(remoteCommand)}`
+      const remoteCommand = cliType
+        ? `exec \${SHELL:-/bin/bash} -ilc ${shQuote(`cd ${shQuote(remoteTarget.remotePath)} && ${cliType === 'claude' ? 'claude' : 'codex'}`)}`
+        : `cd ${shQuote(remoteTarget.remotePath)} && exec \${SHELL:-/bin/bash} -il`
+      const sshCommand = `ssh -tt ${shQuote(remoteTarget.host)} ${shQuote(remoteCommand)}`
       ptyProcess.write(`${sshCommand}\r`)
     }, 250)
     return

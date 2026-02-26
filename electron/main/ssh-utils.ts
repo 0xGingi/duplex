@@ -57,7 +57,8 @@ export function shQuote(value: string): string {
 }
 
 export async function runSsh(host: string, command: string): Promise<string> {
-  const { stdout } = await exec('ssh', [host, 'sh', '-lc', command], {
+  const remoteCommand = `sh -lc ${shQuote(command)}`
+  const { stdout } = await exec('ssh', [host, remoteCommand], {
     maxBuffer: 20 * 1024 * 1024,
   })
   return stdout.trim()
