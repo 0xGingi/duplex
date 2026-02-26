@@ -60,8 +60,8 @@ export default function ChangedFileList({
       setSelectedFile(null)
       setDiffContent(null)
       await onStatusChange()
-    } catch {
-      // Sidebar-level actions surface detailed errors.
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : 'Failed to update staged state')
     }
   }
 

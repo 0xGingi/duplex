@@ -179,7 +179,12 @@ export async function unstageFile(cwd: string, file: string): Promise<void> {
   try {
     await git(cwd, 'restore', '--staged', '--', file)
   } catch {
-    await git(cwd, 'reset', 'HEAD', '--', file)
+    try {
+      await git(cwd, 'reset', 'HEAD', '--', file)
+    } catch {
+      // Handles files added to the index when HEAD/reset semantics are unavailable.
+      await git(cwd, 'rm', '--cached', '--', file)
+    }
   }
 }
 
