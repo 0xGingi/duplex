@@ -3,6 +3,7 @@ import { useGitStore } from '../../stores/useGitStore.ts'
 
 interface ChangedFileListProps {
   changes: GitFileChange[]
+  tabId: string
   tabPath: string
   staged: boolean
   onStatusChange: () => Promise<void>
@@ -31,6 +32,7 @@ const statusLabels: Record<string, string> = {
 
 export default function ChangedFileList({
   changes,
+  tabId,
   tabPath,
   staged,
   onStatusChange,
@@ -41,7 +43,7 @@ export default function ChangedFileList({
   const setDiffContent = useGitStore((s) => s.setDiffContent)
 
   const handleClick = async (file: string) => {
-    setSelectedFile({ file, staged })
+    setSelectedFile({ tabId, file, staged })
     try {
       const diff = await window.electronAPI.getFileDiff(tabPath, file, staged)
       setDiffContent(diff)
@@ -57,8 +59,10 @@ export default function ChangedFileList({
       } else {
         await window.electronAPI.stageFile(tabPath, file)
       }
-      setSelectedFile(null)
-      setDiffContent(null)
+      if (selectedFile?.file === file && selectedFile.tabId === tabId) {
+        setSelectedFile(null)
+        setDiffContent(null)
+      }
       await onStatusChange()
     } catch (error) {
       onError?.(error instanceof Error ? error.message : 'Failed to update staged state')
@@ -68,7 +72,11 @@ export default function ChangedFileList({
   const handleDiscard = async (file: string) => {
     try {
       await window.electronAPI.discardFile(tabPath, file)
-      if (selectedFile?.file === file && !selectedFile.staged) {
+      if (
+        selectedFile?.tabId === tabId &&
+        selectedFile?.file === file &&
+        !selectedFile.staged
+      ) {
         setSelectedFile(null)
         setDiffContent(null)
       }
@@ -100,7 +108,10 @@ export default function ChangedFileList({
   return (
     <div className="space-y-0.5">
       {Array.from(fileMap.values()).map((change) => {
-        const isSelected = selectedFile?.file === change.file && selectedFile.staged === staged
+        const isSelected =
+          selectedFile?.tabId === tabId &&
+          selectedFile?.file === change.file &&
+          selectedFile.staged === staged
         return (
           <div
             key={`${change.file}-${change.staged}`}

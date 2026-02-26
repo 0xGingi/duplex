@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import type { Tab } from '../../types/index.ts'
-import { cleanupTerminal, useTerminal } from './useTerminal.ts'
+import { useTerminal } from './useTerminal.ts'
 
 function getFolderName(folderPath: string): string {
   const parts = folderPath.split(/[\\/]/).filter(Boolean)
@@ -37,10 +37,6 @@ function BottomTerminalInstance({ terminalId, cwd, active }: {
     cwd,
     active,
   })
-
-  useEffect(() => {
-    return () => cleanupTerminal(terminalId)
-  }, [terminalId])
 
   return (
     <div

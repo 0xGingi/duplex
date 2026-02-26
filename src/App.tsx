@@ -8,6 +8,11 @@ import { useAppStore } from './stores/useAppStore.ts'
 import { useTabStore } from './stores/useTabStore.ts'
 import type { Project, Tab, AppState } from './types/index.ts'
 
+function getLeafName(value: string): string {
+  const parts = value.split(/[\\/]/).filter(Boolean)
+  return parts[parts.length - 1] ?? value
+}
+
 function usePersistence() {
   const [hasRestored, setHasRestored] = useState(false)
   const setProject = useAppStore((s) => s.setProject)
@@ -44,8 +49,12 @@ function usePersistence() {
         if (lastPath) {
           try {
             const branch = await window.electronAPI.getGitBranch(lastPath)
+            if (!branch || branch === 'unknown') {
+              await window.electronAPI.storeSet('lastProjectPath', undefined)
+              return
+            }
             const remote = await window.electronAPI.getGitRemote(lastPath)
-            const name = lastPath.split('/').pop() || lastPath
+            const name = getLeafName(lastPath)
 
             const proj: Project = {
               id: crypto.randomUUID(),

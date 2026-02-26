@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { GitStatus } from '../types/index.ts'
 
 interface SelectedGitFile {
+  tabId: string
   file: string
   staged: boolean
 }
@@ -15,6 +16,7 @@ interface GitStore {
   setSelectedFile: (file: SelectedGitFile | null) => void
   setDiffContent: (content: string | null) => void
   clearTab: (tabId: string) => void
+  clearAll: () => void
 }
 
 export const useGitStore = create<GitStore>((set) => ({
@@ -35,4 +37,6 @@ export const useGitStore = create<GitStore>((set) => ({
       const { [tabId]: _, ...rest } = s.statusByTab
       return { statusByTab: rest }
     }),
+
+  clearAll: () => set({ statusByTab: {}, selectedFile: null, diffContent: null }),
 }))

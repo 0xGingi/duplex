@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
+import { useGitStore } from '../../stores/useGitStore.ts'
 import type { Project, RecentSshProject } from '../../types/index.ts'
 
 const RECENT_SSH_PROJECTS_KEY = 'recentSshProjects'
@@ -104,15 +105,20 @@ export default function ProjectSelector() {
   const addTab = useTabStore((s) => s.addTab)
   const tabs = useTabStore((s) => s.tabs)
   const resetTabs = useTabStore((s) => s.resetTabs)
+  const clearGitState = useGitStore((s) => s.clearAll)
 
   const openProject = async (result: { path: string; name: string }) => {
     const branch = await window.electronAPI.getGitBranch(result.path)
+    if (!branch || branch === 'unknown') {
+      throw new Error('Selected path is not a git repository')
+    }
     const remote = await window.electronAPI.getGitRemote(result.path)
 
     await Promise.allSettled([
       ...tabs.map((tab) => window.electronAPI.ptyKill(tab.id)),
     ])
 
+    clearGitState()
     resetTabs()
 
     const proj: Project = {

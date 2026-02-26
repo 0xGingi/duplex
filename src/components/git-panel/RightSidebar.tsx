@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import { useGitStore } from '../../stores/useGitStore.ts'
 import { useGitStatus } from './useGitStatus.ts'
@@ -24,6 +24,13 @@ export default function RightSidebar() {
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
   const [actionInfo, setActionInfo] = useState('')
+
+  useEffect(() => {
+    if (selectedFile && selectedFile.tabId !== activeTab?.id) {
+      setSelectedFile(null)
+      setDiffContent(null)
+    }
+  }, [selectedFile, activeTab?.id, setSelectedFile, setDiffContent])
 
   if (!activeTab) {
     return (
@@ -160,6 +167,7 @@ export default function RightSidebar() {
           </div>
         </div>
         <ChangedFileList
+          tabId={activeTab.id}
           changes={changes}
           tabPath={activeTab.path}
           staged={false}
@@ -187,6 +195,7 @@ export default function RightSidebar() {
           </div>
         </div>
         <ChangedFileList
+          tabId={activeTab.id}
           changes={changes}
           tabPath={activeTab.path}
           staged={true}
@@ -253,7 +262,6 @@ export default function RightSidebar() {
         </div>
       </div>
 
-      {/* Diff viewer */}
       {selectedFile && (
         <div className="flex-1 overflow-y-auto">
           <DiffViewer />

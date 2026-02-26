@@ -1,10 +1,20 @@
 import { useGitStore } from '../../stores/useGitStore.ts'
+import { useTabStore } from '../../stores/useTabStore.ts'
 
 export default function DiffViewer() {
   const selectedFile = useGitStore((s) => s.selectedFile)
   const diffContent = useGitStore((s) => s.diffContent)
+  const activeTabId = useTabStore((s) => s.activeTabId)
 
   if (!selectedFile) {
+    return (
+      <div className="px-3 py-4 text-center text-sm text-text-muted">
+        Select a file to view diff
+      </div>
+    )
+  }
+
+  if (selectedFile.tabId !== activeTabId) {
     return (
       <div className="px-3 py-4 text-center text-sm text-text-muted">
         Select a file to view diff

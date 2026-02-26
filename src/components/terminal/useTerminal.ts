@@ -132,8 +132,8 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
       cleanupData()
       cleanupExit()
       // Kill PTY on unmount (component removed, not tab switch)
-      window.electronAPI.ptyKill(tabId)
-      ptyCreated.delete(tabId)
+      void window.electronAPI.ptyKill(tabId)
+      cleanupTerminal(tabId)
     }
   }, [tabId, cwd, cliType, getOrCreate, startPty])
 
