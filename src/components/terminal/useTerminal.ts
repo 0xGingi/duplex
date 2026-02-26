@@ -88,6 +88,15 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
 
     // Terminal → PTY
     const onData = term.onData((data) => {
+      if (!ptyCreated.has(tabId)) {
+        startPty()
+        // Replay the first key after PTY boot so the terminal feels responsive.
+        setTimeout(() => {
+          window.electronAPI.ptyWrite(tabId, data)
+        }, 80)
+        return
+      }
+
       window.electronAPI.ptyWrite(tabId, data)
     })
 
@@ -101,7 +110,7 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
     const cleanupExit = window.electronAPI.onPtyExit((id, code) => {
       if (id === tabId) {
         ptyCreated.delete(tabId)
-        term.writeln(`\r\n[Process exited with code ${code}]`)
+        term.writeln(`\r\n[Process exited with code ${code}. Press any key to restart.]`)
       }
     })
 
@@ -119,7 +128,7 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
       window.electronAPI.ptyKill(tabId)
       ptyCreated.delete(tabId)
     }
-  }, [tabId, cwd, cliType, getOrCreate])
+  }, [tabId, cwd, cliType, getOrCreate, startPty])
 
   useEffect(() => {
     if (!active) return
