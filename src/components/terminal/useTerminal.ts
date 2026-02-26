@@ -122,6 +122,7 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
 
     // Resize → PTY
     const onResize = term.onResize(({ cols, rows }) => {
+      if (cols < 2 || rows < 2) return
       window.electronAPI.ptyResize(tabId, cols, rows)
     })
 
@@ -158,19 +159,31 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
     if (!active || !containerRef.current) return
 
     const { fitAddon } = getOrCreate()
+    const canFit = () => {
+      const container = containerRef.current
+      if (!container) return false
+      return container.clientWidth > 0 && container.clientHeight > 0
+    }
 
     requestAnimationFrame(() => {
+      if (!canFit()) return
       fitAddon.fit()
     })
 
     // ResizeObserver for panel resize
     const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(() => fitAddon.fit())
+      requestAnimationFrame(() => {
+        if (!canFit()) return
+        fitAddon.fit()
+      })
     })
     resizeObserver.observe(containerRef.current)
 
     // Window resize → fit
-    const handleWindowResize = () => fitAddon.fit()
+    const handleWindowResize = () => {
+      if (!canFit()) return
+      fitAddon.fit()
+    }
     window.addEventListener('resize', handleWindowResize)
 
     return () => {

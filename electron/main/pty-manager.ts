@@ -25,8 +25,9 @@ export function createPty(
   win: BrowserWindow,
   cliType?: CliType
 ): void {
-  // Kill existing if any
-  killPty(id)
+  // Guard against duplicate create requests for the same tab/session id.
+  // Existing PTY should continue running unless explicitly killed first.
+  if (ptys.has(id)) return
 
   const remoteTarget = parseSshProjectPath(cwd)
   const pty = getPtyModule()
@@ -80,7 +81,9 @@ export function writePty(id: string, data: string): void {
 }
 
 export function resizePty(id: string, cols: number, rows: number): void {
-  ptys.get(id)?.resize(cols, rows)
+  const safeCols = Math.max(2, Math.floor(cols))
+  const safeRows = Math.max(2, Math.floor(rows))
+  ptys.get(id)?.resize(safeCols, safeRows)
 }
 
 export function killPty(id: string): void {
