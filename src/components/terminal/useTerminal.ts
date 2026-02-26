@@ -89,6 +89,12 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
     // Terminal → PTY
     const onData = term.onData((data) => {
       if (!ptyCreated.has(tabId)) {
+        // Ignore terminal response/control sequences (e.g. ESC[1;1R, ESC[?1;2c)
+        // when no PTY is attached; replaying them into a new shell causes garbage commands.
+        if (data.startsWith('\u001b')) {
+          return
+        }
+
         startPty()
         // Replay the first key after PTY boot so the terminal feels responsive.
         setTimeout(() => {

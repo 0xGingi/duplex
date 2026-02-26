@@ -8,7 +8,7 @@ export function useGitStatus() {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const tabs = useTabStore((s) => s.tabs)
   const setStatus = useGitStore((s) => s.setStatus)
-  const intervalRef = useRef<ReturnType<typeof setInterval>>()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -36,6 +36,7 @@ export function useGitStatus() {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
   }, [activeTabId, tabs, setStatus])

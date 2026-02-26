@@ -4,10 +4,18 @@ export default function DiffViewer() {
   const selectedFile = useGitStore((s) => s.selectedFile)
   const diffContent = useGitStore((s) => s.diffContent)
 
-  if (!selectedFile || !diffContent) {
+  if (!selectedFile) {
     return (
       <div className="px-3 py-4 text-center text-sm text-text-muted">
         Select a file to view diff
+      </div>
+    )
+  }
+
+  if (!diffContent) {
+    return (
+      <div className="px-3 py-4 text-center text-sm text-text-muted">
+        No diff output for <span className="font-mono">{selectedFile.file}</span>
       </div>
     )
   }

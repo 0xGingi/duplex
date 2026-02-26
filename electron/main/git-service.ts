@@ -10,6 +10,11 @@ interface ExecLikeError extends Error {
   stderr?: string | Buffer
 }
 
+interface ParsedNameStatusEntry {
+  file: string
+  status: GitFileChange['status']
+}
+
 function normalizeExecOutput(value: unknown): string {
   if (typeof value === 'string') return value.trim()
   if (Buffer.isBuffer(value)) return value.toString('utf8').trim()
@@ -27,6 +32,63 @@ function formatGitError(error: unknown): string {
   const details = [stderr, stdout].filter(Boolean).join('\n')
 
   return details || error.message
+}
+
+function mapNameStatus(code: string): GitFileChange['status'] {
+  switch (code) {
+    case 'A':
+      return 'A'
+    case 'D':
+      return 'D'
+    case 'R':
+      return 'R'
+    case 'C':
+      return 'C'
+    case 'U':
+      return 'U'
+    case 'M':
+      return 'M'
+    default:
+      return 'M'
+  }
+}
+
+function parseNameStatusZ(output: string): ParsedNameStatusEntry[] {
+  if (!output) return []
+
+  const entries: ParsedNameStatusEntry[] = []
+  const tokens = output.split('\0').filter(Boolean)
+
+  for (let i = 0; i < tokens.length; i++) {
+    const rawStatus = tokens[i]!
+    const statusCode = rawStatus[0]
+    if (!statusCode) continue
+
+    const firstPath = tokens[i + 1]
+    if (!firstPath) continue
+
+    let file = firstPath
+    i += 1
+    if (statusCode === 'R' || statusCode === 'C') {
+      const renamedPath = tokens[i + 1]
+      if (renamedPath) {
+        file = renamedPath
+        i += 1
+      }
+    }
+
+    entries.push({
+      file,
+      status: mapNameStatus(statusCode),
+    })
+  }
+
+  return entries
+}
+
+function parsePathListZ(output: string): string[] {
+  if (!output) return []
+  return output.split('\0').filter(Boolean)
 }
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
@@ -114,37 +176,52 @@ export async function getStatus(cwd: string): Promise<GitStatus> {
     // No upstream configured
   }
 
-  const changes: GitFileChange[] = []
+  const changesByKey = new Map<string, GitFileChange>()
   try {
-    const statusOutput = await git(cwd, 'status', '--porcelain=v1')
-    if (statusOutput) {
-      for (const line of statusOutput.split('\n')) {
-        if (!line) continue
-        const indexStatus = line[0]!
-        const workStatus = line[1]!
-        const file = line.slice(3)
+    const [stagedOutput, unstagedOutput, untrackedOutput] = await Promise.all([
+      git(cwd, 'diff', '--cached', '--name-status', '-z'),
+      git(cwd, 'diff', '--name-status', '-z'),
+      git(cwd, 'ls-files', '--others', '--exclude-standard', '-z'),
+    ])
 
-        if (indexStatus !== ' ' && indexStatus !== '?') {
-          changes.push({
-            file,
-            status: indexStatus as GitFileChange['status'],
-            staged: true,
-          })
-        }
-        if (workStatus !== ' ') {
-          changes.push({
-            file,
-            status: workStatus === '?' ? '?' : workStatus as GitFileChange['status'],
-            staged: false,
-          })
-        }
+    for (const entry of parseNameStatusZ(stagedOutput)) {
+      const key = `staged:${entry.file}`
+      changesByKey.set(key, {
+        file: entry.file,
+        status: entry.status,
+        staged: true,
+      })
+    }
+
+    for (const entry of parseNameStatusZ(unstagedOutput)) {
+      const key = `unstaged:${entry.file}`
+      changesByKey.set(key, {
+        file: entry.file,
+        status: entry.status,
+        staged: false,
+      })
+    }
+
+    for (const file of parsePathListZ(untrackedOutput)) {
+      const key = `unstaged:${file}`
+      if (!changesByKey.has(key)) {
+        changesByKey.set(key, {
+          file,
+          status: '?',
+          staged: false,
+        })
       }
     }
   } catch {
     // Not a git repo or error
   }
 
-  return { branch, ahead, behind, changes }
+  return {
+    branch,
+    ahead,
+    behind,
+    changes: Array.from(changesByKey.values()),
+  }
 }
 
 export async function getFileDiff(cwd: string, file: string): Promise<string> {
