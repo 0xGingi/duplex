@@ -25,17 +25,16 @@ export default function NewTabButton() {
   useEffect(() => {
     if (!isOpen || !project) return
 
-    void Promise.all([
+    void Promise.allSettled([
       window.electronAPI.getGitBranches(project.path),
       window.electronAPI.listProjectCopies(project.path),
     ])
-      .then(([gitBranches, copiedBranches]) => {
+      .then(([gitResult, copiedResult]) => {
+        const gitBranches = gitResult.status === 'fulfilled' ? gitResult.value : []
+        const copiedBranches = copiedResult.status === 'fulfilled' ? copiedResult.value : []
         const merged = [...new Set([...gitBranches, ...copiedBranches])]
         merged.sort((a, b) => a.localeCompare(b))
         setBranches(merged)
-      })
-      .catch(() => {
-        setBranches([])
       })
   }, [isOpen, project])
 

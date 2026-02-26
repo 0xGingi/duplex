@@ -1,6 +1,6 @@
 {
   "name": "duplex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Desktop agentic coding management app",
   "main": "dist-electron/main/index.js",
   "type": "module",
@@ -22,11 +22,15 @@
       "node_modules/node-pty/**/*"
     ],
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Development"
     },
     "mac": {
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "asar": true,
     "asarUnpack": [

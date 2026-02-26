@@ -31,7 +31,8 @@ export function createPty(
   const remoteTarget = parseSshProjectPath(cwd)
   const pty = getPtyModule()
   const shell = getShell()
-  const ptyProcess = pty.spawn(shell, [], {
+  const shellArgs = process.platform === 'win32' ? [] : ['-il']
+  const ptyProcess = pty.spawn(shell, shellArgs, {
     name: 'xterm-256color',
     cols: 120,
     rows: 30,

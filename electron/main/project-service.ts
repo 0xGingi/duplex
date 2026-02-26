@@ -161,7 +161,10 @@ async function listRemoteProjectCopies(sourcePath: string): Promise<string[]> {
   const command = `
 parent=${shQuote(parentDir)}
 prefix=${shQuote(prefix)}
-find "$parent" -type d -name .git 2>/dev/null | while IFS= read -r gitdir; do
+if [ ! -d "$parent" ]; then
+  exit 0
+fi
+{ find "$parent" -type d -name .git 2>/dev/null || true; } | while IFS= read -r gitdir; do
   repo="\${gitdir%/.git}"
   case "$repo" in
     "$parent/$prefix"*)

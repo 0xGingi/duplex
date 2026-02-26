@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Tab, CliType } from '../types/index.ts'
+import type { Tab } from '../types/index.ts'
 
 interface TabStore {
   tabs: Tab[]
@@ -7,9 +7,10 @@ interface TabStore {
 
   addTab: (tab: Tab) => void
   removeTab: (id: string) => void
-  setActiveTab: (id: string) => void
+  setActiveTab: (id: string | null) => void
   updateTab: (id: string, updates: Partial<Tab>) => void
   setTabs: (tabs: Tab[]) => void
+  resetTabs: () => void
   getActiveTab: () => Tab | undefined
 }
 
@@ -42,6 +43,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
     })),
 
   setTabs: (tabs) => set({ tabs }),
+  resetTabs: () => set({ tabs: [], activeTabId: null }),
 
   getActiveTab: () => {
     const { tabs, activeTabId } = get()

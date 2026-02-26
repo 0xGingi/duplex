@@ -39,11 +39,23 @@ export async function getRemote(cwd: string): Promise<string> {
 
 export async function listBranches(cwd: string): Promise<string[]> {
   try {
-    const output = await git(cwd, 'branch', '--format=%(refname:short)')
-    return output
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
+    const output = await git(cwd, 'branch', '-a', '--no-color')
+    const branches = new Set<string>()
+
+    for (const rawLine of output.split('\n')) {
+      let line = rawLine.replace(/^\*\s+/, '').trim()
+      if (!line || line.includes(' -> ') || line.startsWith('(')) continue
+
+      if (line.startsWith('remotes/')) {
+        const remoteRef = line.slice('remotes/'.length)
+        const separator = remoteRef.indexOf('/')
+        line = separator >= 0 ? remoteRef.slice(separator + 1) : remoteRef
+      }
+
+      if (line) branches.add(line)
+    }
+
+    return Array.from(branches).sort((a, b) => a.localeCompare(b))
   } catch {
     return []
   }
