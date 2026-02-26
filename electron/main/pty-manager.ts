@@ -31,15 +31,31 @@ export function createPty(
 
   const remoteTarget = parseSshProjectPath(cwd)
   const pty = getPtyModule()
-  const shell = getShell()
-  const shellArgs = process.platform === 'win32' ? [] : ['-il']
-  const ptyProcess = pty.spawn(shell, shellArgs, {
-    name: 'xterm-256color',
-    cols: 120,
-    rows: 30,
-    cwd: remoteTarget ? (process.env.HOME || process.cwd()) : cwd,
-    env: { ...process.env } as Record<string, string>,
-  })
+  const ptyProcess = remoteTarget
+    ? pty.spawn(
+      'ssh',
+      [
+        '-tt',
+        remoteTarget.host,
+        cliType
+          ? `exec \${SHELL:-/bin/bash} -ilc ${shQuote(`cd ${shQuote(remoteTarget.remotePath)} && ${cliType === 'claude' ? 'claude' : 'codex'}`)}`
+          : `cd ${shQuote(remoteTarget.remotePath)} && exec \${SHELL:-/bin/bash} -il`,
+      ],
+      {
+        name: 'xterm-256color',
+        cols: 120,
+        rows: 30,
+        cwd: process.env.HOME || process.cwd(),
+        env: { ...process.env } as Record<string, string>,
+      }
+    )
+    : pty.spawn(getShell(), process.platform === 'win32' ? [] : ['-il'], {
+      name: 'xterm-256color',
+      cols: 120,
+      rows: 30,
+      cwd,
+      env: { ...process.env } as Record<string, string>,
+    })
 
   ptys.set(id, ptyProcess)
 
@@ -56,16 +72,7 @@ export function createPty(
     }
   })
 
-  if (remoteTarget) {
-    setTimeout(() => {
-      const remoteCommand = cliType
-        ? `exec \${SHELL:-/bin/bash} -ilc ${shQuote(`cd ${shQuote(remoteTarget.remotePath)} && ${cliType === 'claude' ? 'claude' : 'codex'}`)}`
-        : `cd ${shQuote(remoteTarget.remotePath)} && exec \${SHELL:-/bin/bash} -il`
-      const sshCommand = `ssh -tt ${shQuote(remoteTarget.host)} ${shQuote(remoteCommand)}`
-      ptyProcess.write(`${sshCommand}\r`)
-    }, 250)
-    return
-  }
+  if (remoteTarget) return
 
   // Auto-launch CLI if specified
   if (cliType) {
