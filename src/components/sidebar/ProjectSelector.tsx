@@ -10,7 +10,6 @@ export default function ProjectSelector() {
   const [sshRemotePath, setSshRemotePath] = useState('')
   const project = useAppStore((s) => s.project)
   const setProject = useAppStore((s) => s.setProject)
-  const activeTab = useTabStore((s) => s.tabs.find((tab) => tab.id === s.activeTabId))
   const addTab = useTabStore((s) => s.addTab)
   const tabs = useTabStore((s) => s.tabs)
   const resetTabs = useTabStore((s) => s.resetTabs)
@@ -18,11 +17,9 @@ export default function ProjectSelector() {
   const openProject = async (result: { path: string; name: string }) => {
     const branch = await window.electronAPI.getGitBranch(result.path)
     const remote = await window.electronAPI.getGitRemote(result.path)
-    const bottomCwd = activeTab?.path ?? project?.path ?? ''
 
     await Promise.allSettled([
       ...tabs.map((tab) => window.electronAPI.ptyKill(tab.id)),
-      ...(bottomCwd ? [window.electronAPI.ptyKill(`__bottom_terminal__:${bottomCwd}`)] : []),
     ])
 
     resetTabs()
