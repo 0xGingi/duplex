@@ -11,6 +11,8 @@ import {
   shQuote,
 } from './ssh-utils.ts'
 
+const COPY_EXCLUDED_SEGMENTS = new Set(['node_modules', 'dist', 'dist-electron', 'out'])
+
 export async function selectProjectFolder(win: BrowserWindow): Promise<{ path: string; name: string } | null> {
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory'],
@@ -59,11 +61,7 @@ export async function duplicateProject(sourcePath: string, branchName: string): 
   if (!exists) {
     await cp(sourcePath, destPath, {
       recursive: true,
-      filter: (src) => {
-        const relativePath = path.relative(sourcePath, src)
-        if (!relativePath) return true
-        return !relativePath.split(path.sep).includes('node_modules')
-      },
+      filter: (src) => shouldCopyPath(sourcePath, src),
     })
   }
 
@@ -89,7 +87,8 @@ async function duplicateRemoteProject(sourcePath: string, branchName: string): P
 if [ ! -d ${shQuote(`${destPath}/.git`)} ]; then
   mkdir -p ${shQuote(destParent)}
   cp -R ${shQuote(target.remotePath)} ${shQuote(destPath)}
-  find ${shQuote(destPath)} -type d -name node_modules -prune -exec rm -rf {} +
+  find ${shQuote(destPath)} -type d \\( -name node_modules -o -name dist -o -name dist-electron -o -name out \\) -prune -exec rm -rf {} +
+  find ${shQuote(destPath)} -type f -name '*.asar' -exec rm -f {} +
 fi
 cd ${shQuote(destPath)} && (GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout ${shQuote(branchName)} || GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout -b ${shQuote(branchName)})
 `
@@ -105,6 +104,18 @@ async function pathExists(targetPath: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function shouldCopyPath(sourcePath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(sourcePath, candidatePath)
+  if (!relativePath) return true
+
+  const segments = relativePath.split(path.sep)
+  if (segments.some((segment) => COPY_EXCLUDED_SEGMENTS.has(segment))) {
+    return false
+  }
+
+  return !candidatePath.endsWith('.asar')
 }
 
 export async function deleteProjectCopy(projectPath: string): Promise<void> {
