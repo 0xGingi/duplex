@@ -4,6 +4,7 @@ const store = new Store({
   name: 'duplex-config',
   defaults: {
     lastProjectPath: undefined as string | undefined,
+    recentSshProjects: [] as unknown[],
     tabs: [] as unknown[],
     activeTabId: undefined as string | undefined,
     windowBounds: undefined as { x: number; y: number; width: number; height: number } | undefined,

@@ -44,8 +44,15 @@ export interface AppState {
   bottomTerminalHeight: number
 }
 
+export interface RecentSshProject {
+  host: string
+  remotePath: string
+  lastUsedAt: number
+}
+
 export interface PersistedState {
   lastProjectPath?: string
+  recentSshProjects?: RecentSshProject[]
   tabs: Tab[]
   activeTabId?: string
   windowBounds?: { x: number; y: number; width: number; height: number }
