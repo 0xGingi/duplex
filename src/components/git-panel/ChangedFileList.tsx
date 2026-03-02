@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { GitFileChange } from '../../types/index.ts'
 import { useGitStore } from '../../stores/useGitStore.ts'
 
@@ -41,13 +42,44 @@ export default function ChangedFileList({
   const selectedFile = useGitStore((s) => s.selectedFile)
   const setSelectedFile = useGitStore((s) => s.setSelectedFile)
   const setDiffContent = useGitStore((s) => s.setDiffContent)
+  const diffRequestIdRef = useRef(0)
 
   const handleClick = async (file: string) => {
+    const isSelected =
+      selectedFile?.tabId === tabId &&
+      selectedFile?.file === file &&
+      selectedFile?.staged === staged
+
+    if (isSelected) {
+      diffRequestIdRef.current += 1
+      setSelectedFile(null)
+      setDiffContent(null)
+      return
+    }
+
+    const requestId = diffRequestIdRef.current + 1
+    diffRequestIdRef.current = requestId
+
     setSelectedFile({ tabId, file, staged })
+    setDiffContent(null)
+
     try {
       const diff = await window.electronAPI.getFileDiff(tabPath, file, staged)
+      if (diffRequestIdRef.current !== requestId) return
+
+      const currentSelection = useGitStore.getState().selectedFile
+      if (
+        !currentSelection ||
+        currentSelection.tabId !== tabId ||
+        currentSelection.file !== file ||
+        currentSelection.staged !== staged
+      ) {
+        return
+      }
+
       setDiffContent(diff)
     } catch {
+      if (diffRequestIdRef.current !== requestId) return
       setDiffContent(null)
     }
   }
@@ -60,6 +92,7 @@ export default function ChangedFileList({
         await window.electronAPI.stageFile(tabPath, file)
       }
       if (selectedFile?.file === file && selectedFile.tabId === tabId) {
+        diffRequestIdRef.current += 1
         setSelectedFile(null)
         setDiffContent(null)
       }
@@ -77,6 +110,7 @@ export default function ChangedFileList({
         selectedFile?.file === file &&
         !selectedFile.staged
       ) {
+        diffRequestIdRef.current += 1
         setSelectedFile(null)
         setDiffContent(null)
       }

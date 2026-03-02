@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import { useGitStore } from '../../stores/useGitStore.ts'
 import { useGitStatus } from './useGitStatus.ts'
@@ -24,6 +24,8 @@ export default function RightSidebar() {
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
   const [actionInfo, setActionInfo] = useState('')
+  const listContainerRef = useRef<HTMLDivElement | null>(null)
+  const commitTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     if (selectedFile && selectedFile.tabId !== activeTab?.id) {
@@ -31,6 +33,20 @@ export default function RightSidebar() {
       setDiffContent(null)
     }
   }, [selectedFile, activeTab?.id, setSelectedFile, setDiffContent])
+
+  useEffect(() => {
+    const textarea = commitTextareaRef.current
+    if (!textarea) return
+
+    const maxHeight = 180
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+
+    if (document.activeElement === textarea && listContainerRef.current) {
+      listContainerRef.current.scrollTop = listContainerRef.current.scrollHeight
+    }
+  }, [commitMessage])
 
   if (!activeTab) {
     return (
@@ -130,7 +146,10 @@ export default function RightSidebar() {
       </div>
 
       {/* File list */}
-      <div className={`overflow-y-auto ${selectedFile ? 'max-h-[40%]' : 'flex-1'} border-b border-border`}>
+      <div
+        ref={listContainerRef}
+        className={`overflow-y-auto ${selectedFile ? 'max-h-[40%]' : 'flex-1'} border-b border-border`}
+      >
         <div className="px-3 py-2 border-b border-border bg-bg-tertiary/40">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Unstaged</span>
@@ -205,11 +224,12 @@ export default function RightSidebar() {
 
         <div className="px-3 py-3 border-t border-border bg-bg-tertiary/30">
           <textarea
+            ref={commitTextareaRef}
             value={commitMessage}
             onChange={(e) => setCommitMessage(e.target.value)}
             placeholder="Commit message"
-            rows={2}
-            className="w-full px-2 py-1.5 bg-bg-primary border border-border rounded text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent resize-none"
+            rows={3}
+            className="w-full px-2 py-1.5 bg-bg-primary border border-border rounded text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent resize-none overflow-hidden"
           />
           <div className="flex gap-2 mt-2">
             <button
