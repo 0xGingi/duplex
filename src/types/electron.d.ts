@@ -5,6 +5,12 @@ interface PtyCreateResult {
   error?: string
 }
 
+interface CliCheckResult {
+  ok: boolean
+  executable?: string
+  error?: string
+}
+
 export interface ElectronAPI {
   // Project
   selectProjectFolder: () => Promise<{ path: string; name: string } | null>
@@ -19,7 +25,7 @@ export interface ElectronAPI {
   listProjectCopies: (sourcePath: string) => Promise<string[]>
 
   // PTY
-  ptyCreate: (id: string, cwd: string, cliType?: CliType) => Promise<PtyCreateResult>
+  ptyCreate: (id: string, cwd: string, cliType?: CliType, cliCommand?: string) => Promise<PtyCreateResult>
   ptyWrite: (id: string, data: string) => void
   ptyResize: (id: string, cols: number, rows: number) => void
   ptyKill: (id: string) => Promise<void>
@@ -43,6 +49,9 @@ export interface ElectronAPI {
   // Store
   storeGet: <T>(key: string) => Promise<T | undefined>
   storeSet: (key: string, value: unknown) => Promise<void>
+
+  // CLI
+  checkCliCommand: (command: string) => Promise<CliCheckResult>
 
   // Window
   windowMinimize: () => void

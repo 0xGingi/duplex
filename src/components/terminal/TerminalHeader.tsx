@@ -1,3 +1,9 @@
+import {
+  DEFAULT_CLI_TYPE,
+  getCliOptions,
+  getCliSelectActiveClass,
+  normalizeCliType,
+} from '../../lib/cli-tools.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import { useAppStore } from '../../stores/useAppStore.ts'
 import type { CliType } from '../../types/index.ts'
@@ -5,18 +11,21 @@ import type { CliType } from '../../types/index.ts'
 export default function TerminalHeader() {
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
   const updateTab = useTabStore((s) => s.updateTab)
+  const customCliTools = useAppStore((s) => s.customCliTools)
+  const defaultCliType = useAppStore((s) => s.defaultCliType)
   const toggleGitPanel = useAppStore((s) => s.toggleGitPanel)
   const gitPanelOpen = useAppStore((s) => s.gitPanelOpen)
 
   if (!activeTab) return null
 
-  const handleCliChange = async (cliType: CliType) => {
-    if (cliType === activeTab.cliType) return
-    updateTab(activeTab.id, { cliType })
+  const safeDefaultCliType = normalizeCliType(defaultCliType, customCliTools, DEFAULT_CLI_TYPE)
+  const activeCliType = normalizeCliType(activeTab.cliType, customCliTools, safeDefaultCliType)
+  const cliOptions = getCliOptions(customCliTools)
 
-    // Kill and restart PTY with new CLI
-    await window.electronAPI.ptyKill(activeTab.id)
-    await window.electronAPI.ptyCreate(activeTab.id, activeTab.path, cliType)
+  const handleCliChange = async (cliType: CliType) => {
+    const safeCliType = normalizeCliType(cliType, customCliTools, safeDefaultCliType)
+    if (safeCliType === activeTab.cliType) return
+    updateTab(activeTab.id, { cliType: safeCliType })
   }
 
   return (
@@ -33,27 +42,19 @@ export default function TerminalHeader() {
       <div className="flex-1" />
 
       {/* CLI type selector */}
-      <div className="flex items-center gap-1 mr-2">
-        <button
-          onClick={() => handleCliChange('claude')}
-          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-            activeTab.cliType === 'claude'
-              ? 'bg-accent/20 text-accent'
-              : 'text-text-muted hover:text-text-secondary'
-          }`}
+      <div className="flex items-center gap-2 mr-2">
+        <span className="text-[11px] text-text-muted">CLI</span>
+        <select
+          value={activeCliType}
+          onChange={(event) => void handleCliChange(event.target.value as CliType)}
+          className={`px-2 py-1 rounded text-xs bg-bg-tertiary border focus:outline-none ${getCliSelectActiveClass(activeCliType)}`}
         >
-          Claude
-        </button>
-        <button
-          onClick={() => handleCliChange('codex')}
-          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-            activeTab.cliType === 'codex'
-              ? 'bg-green/20 text-green'
-              : 'text-text-muted hover:text-text-secondary'
-          }`}
-        >
-          Codex
-        </button>
+          {cliOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Toggle git panel */}

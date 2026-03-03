@@ -18,8 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listProjectCopies: (sourcePath: string) => ipcRenderer.invoke('project:list-copies', sourcePath),
 
   // PTY
-  ptyCreate: (id: string, cwd: string, cliType?: CliType) =>
-    ipcRenderer.invoke('pty:create', id, cwd, cliType),
+  ptyCreate: (id: string, cwd: string, cliType?: CliType, cliCommand?: string) =>
+    ipcRenderer.invoke('pty:create', id, cwd, cliType, cliCommand),
   ptyWrite: (id: string, data: string) => ipcRenderer.send('pty:write', id, data),
   ptyResize: (id: string, cols: number, rows: number) => ipcRenderer.send('pty:resize', id, cols, rows),
   ptyKill: (id: string) => ipcRenderer.invoke('pty:kill', id),
@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Store
   storeGet: <T>(key: string) => ipcRenderer.invoke('store:get', key) as Promise<T | undefined>,
   storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
+
+  // CLI
+  checkCliCommand: (command: string) => ipcRenderer.invoke('cli:check-command', command),
 
   // Window
   windowMinimize: () => ipcRenderer.send('window:minimize'),

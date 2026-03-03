@@ -24,6 +24,7 @@ import {
   discardFile,
   discardAll,
 } from './git-service.ts'
+import { checkLocalCliCommand } from './cli-command.ts'
 import { createPty, writePty, resizePty, killPty } from './pty-manager.ts'
 import store from './store.ts'
 import type { CliType } from '../../src/types/index.ts'
@@ -75,10 +76,10 @@ export function registerIpcHandlers(getWindow: WindowGetter): void {
   ipcMain.handle('git:discard-all', (_e, path: string) => discardAll(path))
 
   // PTY
-  ipcMain.handle('pty:create', (_e, id: string, cwd: string, cliType?: CliType) => {
+  ipcMain.handle('pty:create', (_e, id: string, cwd: string, cliType?: CliType, cliCommand?: string) => {
     try {
       const win = getActiveWindow(getWindow)
-      createPty(id, cwd, win, cliType)
+      createPty(id, cwd, win, cliType, cliCommand)
       return { ok: true }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -99,6 +100,9 @@ export function registerIpcHandlers(getWindow: WindowGetter): void {
   // Store
   ipcMain.handle('store:get', (_e, key: string) => store.get(key))
   ipcMain.handle('store:set', (_e, key: string, value: unknown) => store.set(key, value))
+
+  // CLI helpers
+  ipcMain.handle('cli:check-command', (_e, command: string) => checkLocalCliCommand(command))
 
   // Window controls
   ipcMain.on('window:minimize', () => {

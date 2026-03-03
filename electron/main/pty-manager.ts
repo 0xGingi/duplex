@@ -2,6 +2,12 @@ import { createRequire } from 'module'
 import type { IPty } from 'node-pty'
 import type { BrowserWindow } from 'electron'
 import type { CliType } from '../../src/types/index.ts'
+import {
+  buildMissingCliMessage,
+  checkLocalExecutableAvailable,
+  extractCommandExecutable,
+  resolveCliCommand,
+} from './cli-command.ts'
 import { parseSshProjectPath, shQuote } from './ssh-utils.ts'
 
 const require = createRequire(import.meta.url)
@@ -19,17 +25,24 @@ function getShell(): string {
   return process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash')
 }
 
+function getPtyEnv(): Record<string, string> {
+  return { ...process.env } as Record<string, string>
+}
+
 export function createPty(
   id: string,
   cwd: string,
   win: BrowserWindow,
-  cliType?: CliType
+  cliType?: CliType,
+  cliCommand?: string
 ): void {
   // Guard against duplicate create requests for the same tab/session id.
   // Existing PTY should continue running unless explicitly killed first.
   if (ptys.has(id)) return
 
   const remoteTarget = parseSshProjectPath(cwd)
+  const launchCommand = resolveCliCommand(cliType, cliCommand)
+  const launchExecutable = extractCommandExecutable(launchCommand)
   const pty = getPtyModule()
   const ptyProcess = remoteTarget
     ? pty.spawn(
@@ -37,8 +50,16 @@ export function createPty(
       [
         '-tt',
         remoteTarget.host,
-        cliType
-          ? `exec \${SHELL:-/bin/bash} -ilc ${shQuote(`cd ${shQuote(remoteTarget.remotePath)} && ${cliType === 'claude' ? 'claude' : 'codex'}`)}`
+        launchCommand
+          ? `exec \${SHELL:-/bin/bash} -ilc ${shQuote(
+            launchExecutable
+              ? `cd ${shQuote(remoteTarget.remotePath)} && if command -v ${shQuote(launchExecutable)} >/dev/null 2>&1; then ${launchCommand}; else printf '%s\\n' ${shQuote(buildMissingCliMessage({
+                scope: 'remote',
+                host: remoteTarget.host,
+                executable: launchExecutable,
+              }))}; exec \${SHELL:-/bin/bash} -il; fi`
+              : `cd ${shQuote(remoteTarget.remotePath)} && ${launchCommand}`
+          )}`
           : `cd ${shQuote(remoteTarget.remotePath)} && exec \${SHELL:-/bin/bash} -il`,
       ],
       {
@@ -46,7 +67,7 @@ export function createPty(
         cols: 120,
         rows: 30,
         cwd: process.env.HOME || process.cwd(),
-        env: { ...process.env } as Record<string, string>,
+        env: getPtyEnv(),
       }
     )
     : pty.spawn(getShell(), process.platform === 'win32' ? [] : ['-il'], {
@@ -54,7 +75,7 @@ export function createPty(
       cols: 120,
       rows: 30,
       cwd,
-      env: { ...process.env } as Record<string, string>,
+      env: getPtyEnv(),
     })
 
   ptys.set(id, ptyProcess)
@@ -75,10 +96,19 @@ export function createPty(
   if (remoteTarget) return
 
   // Auto-launch CLI if specified
-  if (cliType) {
+  if (launchCommand) {
     setTimeout(() => {
-      const cmd = cliType === 'claude' ? 'claude' : 'codex'
-      ptyProcess.write(`${cmd}\r`)
+      if (launchExecutable && !checkLocalExecutableAvailable(launchExecutable)) {
+        if (!win.isDestroyed()) {
+          win.webContents.send(
+            'pty:data',
+            id,
+            `\r\n${buildMissingCliMessage({ scope: 'local', executable: launchExecutable })}\r\n`
+          )
+        }
+        return
+      }
+      ptyProcess.write(`${launchCommand}\r`)
     }, 500)
   }
 }

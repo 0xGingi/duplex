@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { Project } from '../types/index.ts'
+import { DEFAULT_CLI_TYPE } from '../lib/cli-tools.ts'
+import type { CliType, CustomCliTool, Project } from '../types/index.ts'
 
 interface AppStore {
   project: Project | null
@@ -7,6 +8,8 @@ interface AppStore {
   gitPanelWidth: number
   gitPanelOpen: boolean
   bottomTerminalHeight: number
+  defaultCliType: CliType
+  customCliTools: CustomCliTool[]
 
   setProject: (project: Project | null) => void
   setSidebarWidth: (width: number) => void
@@ -14,6 +17,9 @@ interface AppStore {
   toggleGitPanel: () => void
   setGitPanelOpen: (open: boolean) => void
   setBottomTerminalHeight: (height: number) => void
+  setDefaultCliType: (cliType: CliType) => void
+  setCustomCliTools: (tools: CustomCliTool[]) => void
+  setCliSettings: (settings: { defaultCliType: CliType; customCliTools: CustomCliTool[] }) => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -22,6 +28,8 @@ export const useAppStore = create<AppStore>((set) => ({
   gitPanelWidth: 320,
   gitPanelOpen: true,
   bottomTerminalHeight: 208,
+  defaultCliType: DEFAULT_CLI_TYPE,
+  customCliTools: [],
 
   setProject: (project) => set({ project }),
   setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
@@ -29,4 +37,7 @@ export const useAppStore = create<AppStore>((set) => ({
   toggleGitPanel: () => set((s) => ({ gitPanelOpen: !s.gitPanelOpen })),
   setGitPanelOpen: (gitPanelOpen) => set({ gitPanelOpen }),
   setBottomTerminalHeight: (bottomTerminalHeight) => set({ bottomTerminalHeight }),
+  setDefaultCliType: (defaultCliType) => set({ defaultCliType }),
+  setCustomCliTools: (customCliTools) => set({ customCliTools }),
+  setCliSettings: ({ defaultCliType, customCliTools }) => set({ defaultCliType, customCliTools }),
 }))

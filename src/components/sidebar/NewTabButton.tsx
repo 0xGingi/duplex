@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  DEFAULT_CLI_TYPE,
+  getCliOptions,
+  getCliSelectActiveClass,
+  normalizeCliType,
+} from '../../lib/cli-tools.ts'
 import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import type { CliType, Project } from '../../types/index.ts'
@@ -45,15 +51,19 @@ export default function NewTabButton() {
   const [branches, setBranches] = useState<string[]>([])
   const [branchesLoading, setBranchesLoading] = useState(false)
   const [branchLoadError, setBranchLoadError] = useState('')
-  const [cliType, setCliType] = useState<CliType>('codex')
+  const [cliType, setCliType] = useState<CliType>(DEFAULT_CLI_TYPE)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const project = useAppStore((s) => s.project)
   const setProject = useAppStore((s) => s.setProject)
+  const defaultCliType = useAppStore((s) => s.defaultCliType)
+  const customCliTools = useAppStore((s) => s.customCliTools)
   const addTab = useTabStore((s) => s.addTab)
   const tabs = useTabStore((s) => s.tabs)
   const setActiveTab = useTabStore((s) => s.setActiveTab)
+  const cliOptions = useMemo(() => getCliOptions(customCliTools), [customCliTools])
+  const safeDefaultCliType = normalizeCliType(defaultCliType, customCliTools, DEFAULT_CLI_TYPE)
 
   const openTabBranches = useMemo(
     () => new Set(tabs.filter((tab) => !project || tab.projectId === project.id).map((tab) => tab.branch)),
@@ -136,6 +146,16 @@ export default function NewTabButton() {
     loadBranches(project)
   }, [isOpen, project?.id, project?.path, project?.name, loadBranches])
 
+  useEffect(() => {
+    setCliType((current) => normalizeCliType(current, customCliTools, safeDefaultCliType))
+  }, [customCliTools, safeDefaultCliType])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCliType(safeDefaultCliType)
+    }
+  }, [isOpen, safeDefaultCliType])
+
   const openBranchTab = async (branch: string, cli: CliType) => {
     if (!project || !branch) return
 
@@ -178,12 +198,12 @@ export default function NewTabButton() {
   const handleCreate = async () => {
     const sanitized = branchName.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_./]/g, '')
     if (!sanitized) return
-    await openBranchTab(sanitized, cliType)
+    await openBranchTab(sanitized, normalizeCliType(cliType, customCliTools, safeDefaultCliType))
   }
 
   const handleOpenSelected = async () => {
     if (!selectedBranch) return
-    await openBranchTab(selectedBranch, cliType)
+    await openBranchTab(selectedBranch, normalizeCliType(cliType, customCliTools, safeDefaultCliType))
   }
 
   if (!project) return null
@@ -242,27 +262,20 @@ export default function NewTabButton() {
         )}
       </div>
 
-      <div className="flex gap-1 mt-2">
-        <button
-          onClick={() => setCliType('claude')}
-          className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-            cliType === 'claude'
-              ? 'bg-accent/20 text-accent border border-accent/40'
-              : 'bg-bg-primary text-text-secondary border border-border hover:border-border'
-          }`}
+      <div className="mt-2">
+        <select
+          value={normalizeCliType(cliType, customCliTools, safeDefaultCliType)}
+          onChange={(event) => setCliType(event.target.value as CliType)}
+          className={`w-full px-2 py-1.5 rounded text-xs bg-bg-primary border focus:outline-none ${getCliSelectActiveClass(
+            normalizeCliType(cliType, customCliTools, safeDefaultCliType)
+          )}`}
         >
-          Claude
-        </button>
-        <button
-          onClick={() => setCliType('codex')}
-          className={`flex-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-            cliType === 'codex'
-              ? 'bg-green/20 text-green border border-green/40'
-              : 'bg-bg-primary text-text-secondary border border-border hover:border-border'
-          }`}
-        >
-          Codex
-        </button>
+          {cliOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && <div className="text-xs text-red mt-2">{error}</div>}

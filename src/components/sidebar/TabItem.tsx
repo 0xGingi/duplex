@@ -1,3 +1,5 @@
+import { getCliIndicatorClass, getCliTabLabel } from '../../lib/cli-tools.ts'
+import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import type { Tab } from '../../types/index.ts'
 
@@ -9,7 +11,10 @@ export default function TabItem({ tab }: TabItemProps) {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const setActiveTab = useTabStore((s) => s.setActiveTab)
   const removeTab = useTabStore((s) => s.removeTab)
+  const customCliTools = useAppStore((s) => s.customCliTools)
   const isActive = activeTabId === tab.id
+  const cliIndicatorClass = getCliIndicatorClass(tab.cliType)
+  const cliLabel = getCliTabLabel(tab.cliType, customCliTools)
 
   const handleClose = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -45,16 +50,14 @@ export default function TabItem({ tab }: TabItemProps) {
     >
       {/* CLI type indicator */}
       <div
-        className={`w-2 h-2 rounded-full flex-shrink-0 ${
-          tab.cliType === 'claude' ? 'bg-accent' : 'bg-green'
-        }`}
+        className={`w-2 h-2 rounded-full flex-shrink-0 ${cliIndicatorClass}`}
       />
 
       {/* Branch info */}
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium truncate">{tab.branch}</div>
         <div className="text-xs text-text-muted truncate">
-          {tab.cliType === 'claude' ? 'Claude Code' : 'Codex'}
+          {cliLabel}
           {tab.isOriginal && ' (main)'}
         </div>
       </div>

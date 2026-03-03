@@ -5,7 +5,10 @@ Desktop app for working on multiple coding branches with built-in terminals and 
 ## Features
 
 - Multi-branch workspace tabs (create, reopen, switch, close).
-- Per-tab CLI terminal sessions (`codex` or `claude`) for branch work.
+- Per-tab CLI terminal sessions (`codex`, `claude`, `kimi`, or `opencode`) for branch work.
+- Custom CLI tools can be added and edited (name + command), then used per tab.
+- Custom commands are validated on save, and missing commands show clear launch errors (local/SSH).
+- User-selectable default CLI for newly opened projects and tabs.
 - Bottom shell terminal (always plain terminal), resizable.
 - Git sidebar with:
   - unstaged/staged sections
@@ -32,7 +35,7 @@ Desktop app for working on multiple coding branches with built-in terminals and 
 - Bun (recommended) or Node-compatible environment for tooling
 - `git` available in PATH
 - `ssh` available in PATH (for remote projects)
-- Optional: `codex` and/or `claude` installed where you want to run them
+- Optional: `codex`, `claude`, `kimi`, and/or `opencode` installed where you want to run them
   - local tabs: local machine
   - SSH tabs: remote host
 
@@ -72,7 +75,9 @@ bun run dist
 
 ### Terminals
 
-- Main tab terminals run the selected CLI (`Codex` / `Claude`) per tab.
+- Main tab terminals run the selected CLI (`Codex` / `Claude` / `Kimi` / `OpenCode`) per tab.
+- Default CLI is configurable under `CLI Settings` in the sidebar.
+- Custom tools added in `CLI Settings` appear in all CLI selectors.
 - Bottom terminal is always a shell terminal in the active tab folder.
 - Drag the divider above the bottom terminal to resize split height.
 

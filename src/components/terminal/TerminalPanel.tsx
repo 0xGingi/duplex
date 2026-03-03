@@ -1,6 +1,7 @@
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useRef } from 'react'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import { useAppStore } from '../../stores/useAppStore.ts'
+import type { CliType } from '../../types/index.ts'
 import { useTerminal } from './useTerminal.ts'
 import TerminalHeader from './TerminalHeader.tsx'
 import TerminalLauncherBar from './TerminalLauncherBar.tsx'
@@ -9,7 +10,7 @@ import '@xterm/xterm/css/xterm.css'
 function TerminalInstance({ tabId, cwd, cliType, active }: {
   tabId: string
   cwd: string
-  cliType?: 'claude' | 'codex'
+  cliType?: CliType
   active: boolean
 }) {
   const { containerRef } = useTerminal({ tabId, cwd, cliType, active })
@@ -76,7 +77,7 @@ export default function TerminalPanel() {
           <div
             className="h-1.5 cursor-row-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
             onMouseDown={(event) => startResize(event, 1)}
-            title="Resize Codex/Claude terminal"
+            title="Resize CLI terminal"
           />
         </>
       )}

@@ -1,4 +1,16 @@
-export type CliType = 'claude' | 'codex'
+export type BuiltinCliType = 'claude' | 'codex' | 'kimi' | 'opencode'
+export type CliType = BuiltinCliType | `custom:${string}`
+
+export interface CustomCliTool {
+  id: string
+  name: string
+  command: string
+}
+
+export interface CliSettings {
+  defaultCliType: CliType
+  customTools: CustomCliTool[]
+}
 
 export interface Project {
   id: string

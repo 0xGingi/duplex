@@ -4,6 +4,11 @@ import AppLayout from './components/layout/AppLayout.tsx'
 import LeftSidebar from './components/sidebar/LeftSidebar.tsx'
 import TerminalPanel from './components/terminal/TerminalPanel.tsx'
 import RightSidebar from './components/git-panel/RightSidebar.tsx'
+import {
+  DEFAULT_CLI_TYPE,
+  normalizeCliSettings,
+  normalizeCliType,
+} from './lib/cli-tools.ts'
 import { useAppStore } from './stores/useAppStore.ts'
 import { useTabStore } from './stores/useTabStore.ts'
 import type { Project, Tab, AppState } from './types/index.ts'
@@ -54,6 +59,9 @@ function usePersistence() {
   const setGitPanelWidth = useAppStore((s) => s.setGitPanelWidth)
   const setGitPanelOpen = useAppStore((s) => s.setGitPanelOpen)
   const setBottomTerminalHeight = useAppStore((s) => s.setBottomTerminalHeight)
+  const defaultCliType = useAppStore((s) => s.defaultCliType)
+  const customCliTools = useAppStore((s) => s.customCliTools)
+  const setCliSettings = useAppStore((s) => s.setCliSettings)
 
   const tabs = useTabStore((s) => s.tabs)
   const activeTabId = useTabStore((s) => s.activeTabId)
@@ -65,6 +73,13 @@ function usePersistence() {
   useEffect(() => {
     const restore = async () => {
       try {
+        const storedCliSettings = await window.electronAPI.storeGet<unknown>('cliSettings')
+        const cliSettings = normalizeCliSettings(storedCliSettings)
+        setCliSettings({
+          defaultCliType: cliSettings.defaultCliType,
+          customCliTools: cliSettings.customTools,
+        })
+
         // Restore app state
         const appState = await window.electronAPI.storeGet<AppState>('appState')
         if (appState) {
@@ -140,6 +155,7 @@ function usePersistence() {
                   ...savedTab,
                   projectId: proj.id,
                   path: tabPath,
+                  cliType: normalizeCliType(savedTab.cliType, cliSettings.customTools, cliSettings.defaultCliType),
                   isOriginal,
                 })
               }
@@ -157,7 +173,7 @@ function usePersistence() {
                   projectId: proj.id,
                   name: branch,
                   branch,
-                  cliType: 'codex',
+                  cliType: cliSettings.defaultCliType,
                   path: projectPath,
                   isOriginal: true,
                 })
@@ -169,7 +185,7 @@ function usePersistence() {
                 projectId: proj.id,
                 name: branch,
                 branch,
-                cliType: 'codex',
+                cliType: cliSettings.defaultCliType,
                 path: projectPath,
                 isOriginal: true,
               })
@@ -206,6 +222,16 @@ function usePersistence() {
       bottomTerminalHeight,
     })
   }, [sidebarWidth, gitPanelWidth, gitPanelOpen, bottomTerminalHeight, hasRestored])
+
+  useEffect(() => {
+    if (!hasRestored) return
+
+    const safeDefaultCliType = normalizeCliType(defaultCliType, customCliTools, DEFAULT_CLI_TYPE)
+    window.electronAPI.storeSet('cliSettings', {
+      defaultCliType: safeDefaultCliType,
+      customTools: customCliTools,
+    })
+  }, [defaultCliType, customCliTools, hasRestored])
 }
 
 export default function App() {
