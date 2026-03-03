@@ -17,6 +17,7 @@ const ptyCreated = new Set<string>()
 
 export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const isChatCli = cliType === 'codex' || cliType === 'claude'
 
   // Create or get terminal instance
   const getOrCreate = useCallback(() => {
@@ -82,16 +83,14 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
       })
   }, [tabId, cwd, cliType])
 
-  // Create PTY once and wire data (stable - no active dependency)
-  useEffect(() => {
-    const { term } = getOrCreate()
+  const writeToPty = useCallback(
+    (data: string, options?: { allowEscWithoutPty?: boolean }) => {
+      const allowEscWithoutPty = options?.allowEscWithoutPty ?? false
 
-    // Terminal → PTY
-    const onData = term.onData((data) => {
       if (!ptyCreated.has(tabId)) {
         // Ignore terminal response/control sequences (e.g. ESC[1;1R, ESC[?1;2c)
         // when no PTY is attached; replaying them into a new shell causes garbage commands.
-        if (data.startsWith('\u001b')) {
+        if (!allowEscWithoutPty && data.startsWith('\u001b')) {
           return
         }
 
@@ -104,6 +103,37 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
       }
 
       window.electronAPI.ptyWrite(tabId, data)
+    },
+    [tabId, startPty]
+  )
+
+  // Create PTY once and wire data (stable - no active dependency)
+  useEffect(() => {
+    const { term } = getOrCreate()
+
+    term.attachCustomKeyEventHandler((event) => {
+      // xterm collapses Shift+Enter to Enter. Codex/Claude expect a modified-enter
+      // escape sequence to insert a newline instead of submitting.
+      if (
+        isChatCli &&
+        event.type === 'keydown' &&
+        event.key === 'Enter' &&
+        event.shiftKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey
+      ) {
+        event.preventDefault()
+        writeToPty('\u001b[13;2u', { allowEscWithoutPty: true })
+        return false
+      }
+
+      return true
+    })
+
+    // Terminal → PTY
+    const onData = term.onData((data) => {
+      writeToPty(data)
     })
 
     // PTY → Terminal
@@ -135,7 +165,7 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
       void window.electronAPI.ptyKill(tabId)
       cleanupTerminal(tabId)
     }
-  }, [tabId, cwd, cliType, getOrCreate, startPty])
+  }, [tabId, cwd, cliType, getOrCreate, isChatCli, writeToPty])
 
   useEffect(() => {
     if (!active) return

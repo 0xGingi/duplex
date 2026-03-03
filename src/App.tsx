@@ -13,6 +13,36 @@ function getLeafName(value: string): string {
   return parts[parts.length - 1] ?? value
 }
 
+function normalizeRemotePath(inputPath: string): string {
+  const trimmed = inputPath.trim().replace(/\\/g, '/')
+  if (!trimmed) return ''
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  const normalized = withLeadingSlash.replace(/\/+/g, '/')
+  return normalized === '/' ? normalized : normalized.replace(/\/+$/, '')
+}
+
+function parseSshProjectPath(projectPath: string): { host: string; remotePath: string } | null {
+  if (!projectPath.startsWith('ssh://')) return null
+
+  const raw = projectPath.slice('ssh://'.length)
+  if (!raw) return null
+
+  const marker = raw.indexOf(':/')
+  if (marker >= 0) {
+    const host = raw.slice(0, marker).trim()
+    const remotePath = normalizeRemotePath(raw.slice(marker + 1))
+    if (!host || !remotePath) return null
+    return { host, remotePath }
+  }
+
+  const slash = raw.indexOf('/')
+  if (slash <= 0) return null
+  const host = raw.slice(0, slash).trim()
+  const remotePath = normalizeRemotePath(raw.slice(slash))
+  if (!host || !remotePath) return null
+  return { host, remotePath }
+}
+
 function usePersistence() {
   const [hasRestored, setHasRestored] = useState(false)
   const setProject = useAppStore((s) => s.setProject)
@@ -48,18 +78,30 @@ function usePersistence() {
         const lastPath = await window.electronAPI.storeGet<string>('lastProjectPath')
         if (lastPath) {
           try {
-            const branch = await window.electronAPI.getGitBranch(lastPath)
+            let projectPath = lastPath
+            let projectName = getLeafName(lastPath)
+
+            const sshTarget = parseSshProjectPath(lastPath)
+            if (sshTarget) {
+              const sshProject = await window.electronAPI.connectSshProject(sshTarget.host, sshTarget.remotePath)
+              projectPath = sshProject.path
+              projectName = sshProject.name
+              if (projectPath !== lastPath) {
+                await window.electronAPI.storeSet('lastProjectPath', projectPath)
+              }
+            }
+
+            const branch = await window.electronAPI.getGitBranch(projectPath)
             if (!branch || branch === 'unknown') {
               await window.electronAPI.storeSet('lastProjectPath', undefined)
               return
             }
-            const remote = await window.electronAPI.getGitRemote(lastPath)
-            const name = getLeafName(lastPath)
+            const remote = await window.electronAPI.getGitRemote(projectPath)
 
             const proj: Project = {
               id: crypto.randomUUID(),
-              name,
-              path: lastPath,
+              name: projectName,
+              path: projectPath,
               branch,
               remote,
             }
@@ -74,7 +116,7 @@ function usePersistence() {
 
               for (const savedTab of savedTabs) {
                 const isOriginal = savedTab.isOriginal || savedTab.branch === branch
-                let tabPath = lastPath
+                let tabPath = projectPath
 
                 if (!isOriginal) {
                   try {
@@ -82,11 +124,11 @@ function usePersistence() {
                     if (existingBranch === savedTab.branch) {
                       tabPath = savedTab.path
                     } else {
-                      tabPath = await window.electronAPI.duplicateProject(lastPath, savedTab.branch)
+                      tabPath = await window.electronAPI.duplicateProject(projectPath, savedTab.branch)
                     }
                   } catch {
                     try {
-                      tabPath = await window.electronAPI.duplicateProject(lastPath, savedTab.branch)
+                      tabPath = await window.electronAPI.duplicateProject(projectPath, savedTab.branch)
                     } catch {
                       // Skip tabs we cannot restore.
                       continue
@@ -116,7 +158,7 @@ function usePersistence() {
                   name: branch,
                   branch,
                   cliType: 'codex',
-                  path: lastPath,
+                  path: projectPath,
                   isOriginal: true,
                 })
               }
@@ -128,7 +170,7 @@ function usePersistence() {
                 name: branch,
                 branch,
                 cliType: 'codex',
-                path: lastPath,
+                path: projectPath,
                 isOriginal: true,
               })
             }
