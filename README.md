@@ -112,6 +112,9 @@ src/
 - Black window on Linux:
   - Use the latest built app from this repo state.
   - GPU acceleration is disabled for Linux in main process for stability.
+- AppImage fails with `chrome-sandbox` setuid error:
+  - Latest builds disable setuid sandbox automatically for AppImage startup.
+  - For older builds, launch manually with: `./Duplex-*.AppImage --no-sandbox`
 - SSH connection fails:
   - test directly: `ssh user@host`
   - verify repo path exists and is a git repo.

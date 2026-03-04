@@ -17,6 +17,13 @@ if (process.platform === 'linux') {
   app.disableHardwareAcceleration()
   app.commandLine.appendSwitch('disable-gpu')
   app.commandLine.appendSwitch('disable-gpu-compositing')
+
+  // AppImage mounts typically do not preserve setuid permissions for
+  // chrome-sandbox, which can crash startup with a fatal sandbox helper error.
+  if (process.env.APPIMAGE) {
+    app.commandLine.appendSwitch('no-sandbox')
+    app.commandLine.appendSwitch('disable-setuid-sandbox')
+  }
 }
 
 function createWindow() {
