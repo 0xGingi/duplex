@@ -99,7 +99,13 @@ export function registerIpcHandlers(getWindow: WindowGetter): void {
 
   // Store
   ipcMain.handle('store:get', (_e, key: string) => store.get(key))
-  ipcMain.handle('store:set', (_e, key: string, value: unknown) => store.set(key, value))
+  ipcMain.handle('store:set', (_e, key: string, value: unknown) => {
+    if (value === undefined) {
+      store.delete(key)
+    } else {
+      store.set(key, value)
+    }
+  })
 
   // CLI helpers
   ipcMain.handle('cli:check-command', (_e, command: string) => checkLocalCliCommand(command))
