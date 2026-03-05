@@ -50,8 +50,10 @@ export function registerIpcHandlers(getWindow: WindowGetter): void {
   ipcMain.handle('project:connect-ssh', (_e, host: string, remotePath: string) =>
     connectSshProject(host, remotePath)
   )
-  ipcMain.handle('project:duplicate', (_e, sourcePath: string, branchName: string) =>
-    duplicateProject(sourcePath, branchName)
+  ipcMain.handle(
+    'project:duplicate',
+    (_e, sourcePath: string, branchName: string, options?: { runBunInstall?: boolean }) =>
+      duplicateProject(sourcePath, branchName, options)
   )
   ipcMain.handle('project:delete-copy', (_e, path: string) => deleteProjectCopy(path))
   ipcMain.handle('project:list-copies', (_e, sourcePath: string) => listProjectCopies(sourcePath))

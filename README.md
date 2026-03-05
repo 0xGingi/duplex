@@ -75,6 +75,7 @@ bun run dist
 - `New Branch` creates a branch workspace tab.
 - Existing branches can be reopened from `Open existing branch...`.
 - Branch workspaces are copied from the project root and skip `node_modules`.
+- New Branch includes an optional `Run bun install after branch setup` toggle (local and SSH).
 
 ### Terminals
 

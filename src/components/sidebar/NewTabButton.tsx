@@ -9,6 +9,8 @@ import { useAppStore } from '../../stores/useAppStore.ts'
 import { useTabStore } from '../../stores/useTabStore.ts'
 import type { CliType, Project } from '../../types/index.ts'
 
+const AUTO_BUN_INSTALL_KEY = 'branchAutoRunBunInstall'
+
 function formatActionError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error)
   return raw.replace(/^Error invoking remote method '[^']+': Error:\s*/, '').trim()
@@ -52,6 +54,7 @@ export default function NewTabButton() {
   const [branchesLoading, setBranchesLoading] = useState(false)
   const [branchLoadError, setBranchLoadError] = useState('')
   const [cliType, setCliType] = useState<CliType>(DEFAULT_CLI_TYPE)
+  const [runBunInstall, setRunBunInstall] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -156,6 +159,20 @@ export default function NewTabButton() {
     }
   }, [isOpen, safeDefaultCliType])
 
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const stored = await window.electronAPI.storeGet<unknown>(AUTO_BUN_INSTALL_KEY)
+      if (!active) return
+      setRunBunInstall(stored === true)
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
   const openBranchTab = async (branch: string, cli: CliType) => {
     if (!project || !branch) return
 
@@ -173,7 +190,7 @@ export default function NewTabButton() {
       const isMainBranch = branch === project.branch
       const destPath = isMainBranch
         ? project.path
-        : await window.electronAPI.duplicateProject(project.path, branch)
+        : await window.electronAPI.duplicateProject(project.path, branch, { runBunInstall })
 
       addTab({
         id: crypto.randomUUID(),
@@ -277,6 +294,21 @@ export default function NewTabButton() {
           ))}
         </select>
       </div>
+
+      <label className="mt-2 flex items-center gap-2 text-xs text-text-secondary">
+        <input
+          type="checkbox"
+          checked={runBunInstall}
+          disabled={loading}
+          onChange={(event) => {
+            const nextValue = event.target.checked
+            setRunBunInstall(nextValue)
+            void window.electronAPI.storeSet(AUTO_BUN_INSTALL_KEY, nextValue)
+          }}
+          className="h-3.5 w-3.5 accent-accent"
+        />
+        Run `bun install` after branch setup
+      </label>
 
       {error && <div className="text-xs text-red mt-2">{error}</div>}
 

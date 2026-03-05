@@ -12,8 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGitRemote: (path: string) => ipcRenderer.invoke('git:remote', path),
 
   // Project duplication
-  duplicateProject: (sourcePath: string, branchName: string) =>
-    ipcRenderer.invoke('project:duplicate', sourcePath, branchName),
+  duplicateProject: (sourcePath: string, branchName: string, options?: { runBunInstall?: boolean }) =>
+    ipcRenderer.invoke('project:duplicate', sourcePath, branchName, options),
   deleteProjectCopy: (path: string) => ipcRenderer.invoke('project:delete-copy', path),
   listProjectCopies: (sourcePath: string) => ipcRenderer.invoke('project:list-copies', sourcePath),
 

@@ -26,7 +26,11 @@ export interface ElectronAPI {
   getGitRemote: (path: string) => Promise<string>
 
   // Project duplication
-  duplicateProject: (sourcePath: string, branchName: string) => Promise<string>
+  duplicateProject: (
+    sourcePath: string,
+    branchName: string,
+    options?: { runBunInstall?: boolean }
+  ) => Promise<string>
   deleteProjectCopy: (path: string) => Promise<void>
   listProjectCopies: (sourcePath: string) => Promise<string[]>
 

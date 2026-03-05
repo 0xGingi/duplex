@@ -16,6 +16,10 @@ import {
 const COPY_EXCLUDED_SEGMENTS = new Set(['node_modules', 'dist', 'dist-electron', 'out'])
 const exec = promisify(execFile)
 
+interface DuplicateProjectOptions {
+  runBunInstall?: boolean
+}
+
 export async function selectProjectFolder(win: BrowserWindow): Promise<{ path: string; name: string } | null> {
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory'],
@@ -51,9 +55,15 @@ export async function connectSshProject(
   }
 }
 
-export async function duplicateProject(sourcePath: string, branchName: string): Promise<string> {
+export async function duplicateProject(
+  sourcePath: string,
+  branchName: string,
+  options?: DuplicateProjectOptions
+): Promise<string> {
+  const shouldRunBunInstall = options?.runBunInstall === true
+
   if (isSshProjectPath(sourcePath)) {
-    return duplicateRemoteProject(sourcePath, branchName)
+    return duplicateRemoteProject(sourcePath, branchName, shouldRunBunInstall)
   }
 
   const parentDir = path.dirname(sourcePath)
@@ -84,10 +94,18 @@ export async function duplicateProject(sourcePath: string, branchName: string): 
     await checkoutNewBranch(destPath, branchName)
   }
 
+  if (shouldRunBunInstall) {
+    await runLocalBunInstall(destPath)
+  }
+
   return destPath
 }
 
-async function duplicateRemoteProject(sourcePath: string, branchName: string): Promise<string> {
+async function duplicateRemoteProject(
+  sourcePath: string,
+  branchName: string,
+  shouldRunBunInstall: boolean
+): Promise<string> {
   const target = parseSshProjectPath(sourcePath)
   if (!target) throw new Error(`Invalid SSH source path: ${sourcePath}`)
 
@@ -95,6 +113,9 @@ async function duplicateRemoteProject(sourcePath: string, branchName: string): P
   const baseName = path.posix.basename(target.remotePath)
   const destPath = path.posix.join(parentDir, `${baseName}-${branchName}`)
   const destParent = path.posix.dirname(destPath)
+  const bunInstallSegment = shouldRunBunInstall
+    ? ' && (export PATH="$HOME/.bun/bin:$PATH"; bun install)'
+    : ''
 
   const command = `
 if [ ! -d ${shQuote(`${destPath}/.git`)} ]; then
@@ -103,11 +124,23 @@ if [ ! -d ${shQuote(`${destPath}/.git`)} ]; then
   find ${shQuote(destPath)} -type d \\( -name node_modules -o -name dist -o -name dist-electron -o -name out \\) -prune -exec rm -rf {} +
   find ${shQuote(destPath)} -type f -name '*.asar' -exec rm -f {} +
 fi
-cd ${shQuote(destPath)} && (GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout ${shQuote(branchName)} || GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout -b ${shQuote(branchName)})
+cd ${shQuote(destPath)} && (GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout ${shQuote(branchName)} || GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout -b ${shQuote(branchName)})${bunInstallSegment}
 `
 
   await runSsh(target.host, command)
   return formatSshProjectPath(target.host, destPath)
+}
+
+async function runLocalBunInstall(cwd: string): Promise<void> {
+  try {
+    await exec('bun', ['install'], {
+      cwd,
+      env: process.env,
+      maxBuffer: 20 * 1024 * 1024,
+    })
+  } catch (error) {
+    throw new Error(`Failed to run bun install in ${cwd}: ${extractCommandFailure(error)}`)
+  }
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {
@@ -134,6 +167,22 @@ async function isGitRepository(targetPath: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function extractCommandFailure(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const errorWithOutput = error as { stderr?: unknown; stdout?: unknown; message?: unknown }
+    const stderr = typeof errorWithOutput.stderr === 'string' ? errorWithOutput.stderr.trim() : ''
+    if (stderr) return stderr
+
+    const stdout = typeof errorWithOutput.stdout === 'string' ? errorWithOutput.stdout.trim() : ''
+    if (stdout) return stdout
+
+    const message = typeof errorWithOutput.message === 'string' ? errorWithOutput.message.trim() : ''
+    if (message) return message
+  }
+
+  return String(error)
 }
 
 function shouldCopyPath(sourcePath: string, candidatePath: string): boolean {
