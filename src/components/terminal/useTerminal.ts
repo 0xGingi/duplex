@@ -21,6 +21,7 @@ interface UseTerminalOptions {
 const terminals = new Map<string, { term: Terminal; fitAddon: FitAddon }>()
 // Track which PTYs have been created (avoid double-create)
 const ptyCreated = new Set<string>()
+const SSH_PROJECT_PREFIX = 'ssh://'
 
 export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -32,6 +33,7 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
     : undefined
   const cliCommand = getCliCommand(safeCliType, customCliTools)
   const isChatCli = safeCliType ? isChatCliType(safeCliType) : false
+  const isSshSession = cwd.startsWith(SSH_PROJECT_PREFIX)
 
   // Create or get terminal instance
   const getOrCreate = useCallback(() => {
@@ -217,6 +219,56 @@ export function useTerminal({ tabId, cwd, cliType, active }: UseTerminalOptions)
       term.open(container)
     }
   }, [getOrCreate])
+
+  useEffect(() => {
+    if (!isSshSession) return
+
+    const container = containerRef.current
+    if (!container) return
+
+    const { term } = getOrCreate()
+
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items
+      if (!items || items.length === 0) return
+
+      const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'))
+      if (!imageItem) return
+
+      const imageFile = imageItem.getAsFile()
+      if (!imageFile) {
+        term.writeln('\r\n[Failed to paste image: Clipboard image could not be read.]\r\n')
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      void imageFile
+        .arrayBuffer()
+        .then((buffer) =>
+          window.electronAPI.ptyPasteImage(
+            tabId,
+            cwd,
+            new Uint8Array(buffer),
+            imageFile.type || undefined
+          )
+        )
+        .then((result) => {
+          if (result.ok) return
+          term.writeln(`\r\n[Failed to paste image: ${result.error ?? 'Unknown error'}]\r\n`)
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error)
+          term.writeln(`\r\n[Failed to paste image: ${message}]\r\n`)
+        })
+    }
+
+    container.addEventListener('paste', handlePaste, true)
+    return () => {
+      container.removeEventListener('paste', handlePaste, true)
+    }
+  }, [isSshSession, tabId, cwd, getOrCreate])
 
   // Fit only when active/visible.
   useEffect(() => {

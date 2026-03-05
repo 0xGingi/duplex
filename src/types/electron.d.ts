@@ -5,6 +5,12 @@ interface PtyCreateResult {
   error?: string
 }
 
+interface PtyPasteImageResult {
+  ok: boolean
+  path?: string
+  error?: string
+}
+
 interface CliCheckResult {
   ok: boolean
   executable?: string
@@ -29,6 +35,12 @@ export interface ElectronAPI {
   ptyWrite: (id: string, data: string) => void
   ptyResize: (id: string, cols: number, rows: number) => void
   ptyKill: (id: string) => Promise<void>
+  ptyPasteImage: (
+    id: string,
+    cwd: string,
+    imageBytes: Uint8Array,
+    mimeType?: string
+  ) => Promise<PtyPasteImageResult>
   onPtyData: (callback: (id: string, data: string) => void) => () => void
   onPtyExit: (callback: (id: string, code: number) => void) => () => void
 

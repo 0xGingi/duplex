@@ -94,6 +94,7 @@ bun run dist
 - Git operations for SSH projects execute remotely over SSH.
 - Branch copy/reopen/delete for SSH projects are also done remotely.
 - If CLI commands fail in SSH tabs, verify the CLI exists on the remote host.
+- Clipboard image paste in SSH tabs is forwarded by Duplex: the image is uploaded to `/tmp/codex-clipboard-*.png` on the remote host and that remote path is pasted into the terminal.
 
 ## Project Structure
 

@@ -25,7 +25,7 @@ import {
   discardAll,
 } from './git-service.ts'
 import { checkLocalCliCommand } from './cli-command.ts'
-import { createPty, writePty, resizePty, killPty } from './pty-manager.ts'
+import { createPty, writePty, resizePty, killPty, pasteImageToRemotePty } from './pty-manager.ts'
 import store from './store.ts'
 import type { CliType } from '../../src/types/index.ts'
 
@@ -96,6 +96,11 @@ export function registerIpcHandlers(getWindow: WindowGetter): void {
   ipcMain.on('pty:write', (_e, id: string, data: string) => writePty(id, data))
   ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) => resizePty(id, cols, rows))
   ipcMain.handle('pty:kill', (_e, id: string) => killPty(id))
+  ipcMain.handle(
+    'pty:paste-image',
+    (_e, id: string, cwd: string, imageBytes: Uint8Array, mimeType?: string) =>
+      pasteImageToRemotePty(id, cwd, imageBytes, mimeType)
+  )
 
   // Store
   ipcMain.handle('store:get', (_e, key: string) => store.get(key))

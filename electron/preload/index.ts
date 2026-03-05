@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ptyWrite: (id: string, data: string) => ipcRenderer.send('pty:write', id, data),
   ptyResize: (id: string, cols: number, rows: number) => ipcRenderer.send('pty:resize', id, cols, rows),
   ptyKill: (id: string) => ipcRenderer.invoke('pty:kill', id),
+  ptyPasteImage: (id: string, cwd: string, imageBytes: Uint8Array, mimeType?: string) =>
+    ipcRenderer.invoke('pty:paste-image', id, cwd, imageBytes, mimeType),
   onPtyData: (callback: (id: string, data: string) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, id: string, data: string) => callback(id, data)
     ipcRenderer.on('pty:data', handler)
