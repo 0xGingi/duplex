@@ -2,6 +2,9 @@
 
 Desktop app for working on multiple coding branches with built-in terminals and Git workflows.
 
+<img width="4084" height="2250" alt="CleanShot 2026-03-04 at 20 04 21@2x" src="https://github.com/user-attachments/assets/56a3e474-672a-4812-8174-ded520cc04ca" />
+
+
 ## Features
 
 - Multi-branch workspace tabs (create, reopen, switch, close).
