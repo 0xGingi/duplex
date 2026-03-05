@@ -1,0 +1,41 @@
+<svg width="1200" height="1380" viewBox="0 0 1200 1380" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Duplex stacked lockup</title>
+  <desc id="desc">Duplex icon with centered wordmark below.</desc>
+
+  <defs>
+    <linearGradient id="stack-bg" x1="170" y1="110" x2="1000" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#091423"/>
+      <stop offset="1" stop-color="#0E1E31"/>
+    </linearGradient>
+    <linearGradient id="stack-accent" x1="290" y1="290" x2="790" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="stack-accent-soft" x1="580" y1="344" x2="742" y2="652" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#93C5FD"/>
+      <stop offset="1" stop-color="#5EEAD4"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="180" y="120" width="840" height="840" rx="190" fill="url(#stack-bg)"/>
+  <rect x="258" y="206" width="684" height="662" rx="74" fill="#0B1422" stroke="#1D2A3A" stroke-width="10"/>
+
+  <circle cx="316" cy="272" r="12" fill="#22C55E"/>
+  <circle cx="352" cy="272" r="12" fill="#F59E0B"/>
+  <circle cx="388" cy="272" r="12" fill="#EF4444"/>
+
+  <line x1="600" y1="328" x2="600" y2="788" stroke="#1D2A3A" stroke-width="8"/>
+
+  <path d="M348 460L412 524L348 588" stroke="url(#stack-accent)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="440" y1="588" x2="530" y2="588" stroke="url(#stack-accent)" stroke-width="26" stroke-linecap="round"/>
+
+  <path d="M676 452H796" stroke="url(#stack-accent-soft)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M676 452L750 386" stroke="url(#stack-accent-soft)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M676 452L750 518" stroke="url(#stack-accent-soft)" stroke-width="20" stroke-linecap="round"/>
+
+  <path d="M676 658H796" stroke="url(#stack-accent)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M676 658L750 592" stroke="url(#stack-accent)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M676 658L750 724" stroke="url(#stack-accent)" stroke-width="20" stroke-linecap="round"/>
+
+  <text x="600" y="1170" fill="#0F172A" text-anchor="middle" font-family="Space Grotesk, Sora, Manrope, 'Segoe UI', sans-serif" font-size="220" font-weight="700" letter-spacing="-3">Duplex</text>
+</svg>

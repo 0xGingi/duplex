@@ -1,0 +1,41 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Duplex icon final</title>
+  <desc id="desc">Terminal-inspired app icon with split panes and branching workflow markers.</desc>
+  <defs>
+    <linearGradient id="duplex-bg" x1="108" y1="96" x2="930" y2="938" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#091423"/>
+      <stop offset="1" stop-color="#0E1E31"/>
+    </linearGradient>
+    <linearGradient id="duplex-accent" x1="246" y1="312" x2="786" y2="808" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="duplex-accent-soft" x1="566" y1="386" x2="736" y2="704" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#93C5FD"/>
+      <stop offset="1" stop-color="#5EEAD4"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="96" y="96" width="832" height="832" rx="188" fill="url(#duplex-bg)"/>
+  <rect x="174" y="182" width="676" height="660" rx="76" fill="#0B1422" stroke="#1D2A3A" stroke-width="10"/>
+
+  <circle cx="232" cy="248" r="12" fill="#22C55E"/>
+  <circle cx="268" cy="248" r="12" fill="#F59E0B"/>
+  <circle cx="304" cy="248" r="12" fill="#EF4444"/>
+
+  <line x1="512" y1="302" x2="512" y2="764" stroke="#1D2A3A" stroke-width="8"/>
+
+  <path d="M264 432L328 496L264 560" stroke="url(#duplex-accent)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="356" y1="560" x2="446" y2="560" stroke="url(#duplex-accent)" stroke-width="26" stroke-linecap="round"/>
+
+  <path d="M588 414H708" stroke="url(#duplex-accent-soft)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M588 414L662 348" stroke="url(#duplex-accent-soft)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M588 414L662 480" stroke="url(#duplex-accent-soft)" stroke-width="20" stroke-linecap="round"/>
+
+  <path d="M588 620H708" stroke="url(#duplex-accent)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M588 620L662 554" stroke="url(#duplex-accent)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M588 620L662 686" stroke="url(#duplex-accent)" stroke-width="20" stroke-linecap="round"/>
+
+  <circle cx="588" cy="414" r="10" fill="#93C5FD"/>
+  <circle cx="588" cy="620" r="10" fill="#22D3EE"/>
+</svg>
