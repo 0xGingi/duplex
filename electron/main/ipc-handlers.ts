@@ -25,7 +25,7 @@ import {
   discardAll,
 } from './git-service.ts'
 import { checkLocalCliCommand } from './cli-command.ts'
-import { createPty, writePty, resizePty, killPty, pasteImageToRemotePty } from './pty-manager.ts'
+import { createPty, writePty, resizePty, killPty, killPtysForCwd, pasteImageToRemotePty } from './pty-manager.ts'
 import store from './store.ts'
 import type { CliType } from '../../src/types/index.ts'
 
@@ -52,10 +52,18 @@ export function registerIpcHandlers(getWindow: WindowGetter): void {
   )
   ipcMain.handle(
     'project:duplicate',
-    (_e, sourcePath: string, branchName: string, options?: { runBunInstall?: boolean }) =>
+    (
+      _e,
+      sourcePath: string,
+      branchName: string,
+      options?: { runBunInstall?: boolean; discardUncommittedChangesInCopy?: boolean }
+    ) =>
       duplicateProject(sourcePath, branchName, options)
   )
-  ipcMain.handle('project:delete-copy', (_e, path: string) => deleteProjectCopy(path))
+  ipcMain.handle('project:delete-copy', (_e, path: string) => {
+    killPtysForCwd(path)
+    return deleteProjectCopy(path)
+  })
   ipcMain.handle('project:list-copies', (_e, sourcePath: string) => listProjectCopies(sourcePath))
 
   // Git

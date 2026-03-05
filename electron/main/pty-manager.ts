@@ -15,6 +15,7 @@ import { parseSshProjectPath, shQuote } from './ssh-utils.ts'
 const require = createRequire(import.meta.url)
 let ptyModule: typeof import('node-pty') | null = null
 const ptys = new Map<string, IPty>()
+const ptyCwds = new Map<string, string>()
 const MAX_PASTE_IMAGE_BYTES = 20 * 1024 * 1024
 
 function getPtyModule(): typeof import('node-pty') {
@@ -82,6 +83,7 @@ export function createPty(
     })
 
   ptys.set(id, ptyProcess)
+  ptyCwds.set(id, cwd)
 
   ptyProcess.onData((data: string) => {
     if (!win.isDestroyed()) {
@@ -91,6 +93,7 @@ export function createPty(
 
   ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
     ptys.delete(id)
+    ptyCwds.delete(id)
     if (!win.isDestroyed()) {
       win.webContents.send('pty:exit', id, exitCode)
     }
@@ -132,12 +135,23 @@ export function killPty(id: string): void {
     p.kill()
     ptys.delete(id)
   }
+  ptyCwds.delete(id)
 }
 
 export function killAll(): void {
   for (const [id, p] of ptys) {
     p.kill()
     ptys.delete(id)
+    ptyCwds.delete(id)
+  }
+}
+
+export function killPtysForCwd(cwd: string): void {
+  for (const [id, p] of ptys) {
+    if (ptyCwds.get(id) !== cwd) continue
+    p.kill()
+    ptys.delete(id)
+    ptyCwds.delete(id)
   }
 }
 

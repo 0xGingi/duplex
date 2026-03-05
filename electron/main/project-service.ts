@@ -18,6 +18,7 @@ const exec = promisify(execFile)
 
 interface DuplicateProjectOptions {
   runBunInstall?: boolean
+  discardUncommittedChangesInCopy?: boolean
 }
 
 export async function selectProjectFolder(win: BrowserWindow): Promise<{ path: string; name: string } | null> {
@@ -61,9 +62,15 @@ export async function duplicateProject(
   options?: DuplicateProjectOptions
 ): Promise<string> {
   const shouldRunBunInstall = options?.runBunInstall === true
+  const shouldDiscardUncommittedChangesInCopy = options?.discardUncommittedChangesInCopy === true
 
   if (isSshProjectPath(sourcePath)) {
-    return duplicateRemoteProject(sourcePath, branchName, shouldRunBunInstall)
+    return duplicateRemoteProject(
+      sourcePath,
+      branchName,
+      shouldRunBunInstall,
+      shouldDiscardUncommittedChangesInCopy
+    )
   }
 
   const parentDir = path.dirname(sourcePath)
@@ -88,6 +95,10 @@ export async function duplicateProject(
     throw new Error(`Failed to prepare branch workspace at ${destPath}: copied folder is not a git repository`)
   }
 
+  if (shouldDiscardUncommittedChangesInCopy && !exists) {
+    await discardCopiedUncommittedChanges(destPath)
+  }
+
   try {
     await checkoutBranch(destPath, branchName)
   } catch {
@@ -104,7 +115,8 @@ export async function duplicateProject(
 async function duplicateRemoteProject(
   sourcePath: string,
   branchName: string,
-  shouldRunBunInstall: boolean
+  shouldRunBunInstall: boolean,
+  shouldDiscardUncommittedChangesInCopy: boolean
 ): Promise<string> {
   const target = parseSshProjectPath(sourcePath)
   if (!target) throw new Error(`Invalid SSH source path: ${sourcePath}`)
@@ -116,15 +128,20 @@ async function duplicateRemoteProject(
   const bunInstallSegment = shouldRunBunInstall
     ? ' && (export PATH="$HOME/.bun/bin:$PATH"; bun install)'
     : ''
+  const discardSegment = shouldDiscardUncommittedChangesInCopy
+    ? 'if [ "$copied_workspace" -eq 1 ]; then GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git reset --hard HEAD && GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git clean -fd; fi && '
+    : ''
 
   const command = `
+copied_workspace=0
 if [ ! -d ${shQuote(`${destPath}/.git`)} ]; then
   mkdir -p ${shQuote(destParent)}
   cp -R ${shQuote(target.remotePath)} ${shQuote(destPath)}
   find ${shQuote(destPath)} -type d \\( -name node_modules -o -name dist -o -name dist-electron -o -name out \\) -prune -exec rm -rf {} +
   find ${shQuote(destPath)} -type f -name '*.asar' -exec rm -f {} +
+  copied_workspace=1
 fi
-cd ${shQuote(destPath)} && (GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout ${shQuote(branchName)} || GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout -b ${shQuote(branchName)})${bunInstallSegment}
+cd ${shQuote(destPath)} && ${discardSegment}(GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout ${shQuote(branchName)} || GIT_DISCOVERY_ACROSS_FILESYSTEM=1 git checkout -b ${shQuote(branchName)})${bunInstallSegment}
 `
 
   await runSsh(target.host, command)
@@ -140,6 +157,24 @@ async function runLocalBunInstall(cwd: string): Promise<void> {
     })
   } catch (error) {
     throw new Error(`Failed to run bun install in ${cwd}: ${extractCommandFailure(error)}`)
+  }
+}
+
+async function discardCopiedUncommittedChanges(cwd: string): Promise<void> {
+  const execOptions = {
+    cwd,
+    env: {
+      ...process.env,
+      GIT_DISCOVERY_ACROSS_FILESYSTEM: '1',
+    },
+    maxBuffer: 20 * 1024 * 1024,
+  } as const
+
+  try {
+    await exec('git', ['reset', '--hard', 'HEAD'], execOptions)
+    await exec('git', ['clean', '-fd'], execOptions)
+  } catch (error) {
+    throw new Error(`Failed to discard copied uncommitted changes in ${cwd}: ${extractCommandFailure(error)}`)
   }
 }
 
@@ -205,7 +240,38 @@ export async function deleteProjectCopy(projectPath: string): Promise<void> {
     return
   }
 
-  await rm(projectPath, { recursive: true, force: true })
+  let lastError: unknown = null
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await rm(projectPath, {
+        recursive: true,
+        force: true,
+        maxRetries: 8,
+        retryDelay: 120,
+      })
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt < 3) {
+        await wait(120 * attempt)
+      }
+    }
+  }
+
+  if (process.platform !== 'win32') {
+    try {
+      await exec('rm', ['-rf', '--', projectPath], {
+        maxBuffer: 20 * 1024 * 1024,
+      })
+      return
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw new Error(
+    `Failed to delete workspace copy at ${projectPath}: ${extractCommandFailure(lastError)}`
+  )
 }
 
 export async function listProjectCopies(sourcePath: string): Promise<string[]> {
@@ -293,4 +359,8 @@ async function findRepoRoots(rootPath: string): Promise<string[]> {
 
   await walk(rootPath)
   return roots
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
 }

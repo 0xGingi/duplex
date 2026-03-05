@@ -29,7 +29,7 @@ export interface ElectronAPI {
   duplicateProject: (
     sourcePath: string,
     branchName: string,
-    options?: { runBunInstall?: boolean }
+    options?: { runBunInstall?: boolean; discardUncommittedChangesInCopy?: boolean }
   ) => Promise<string>
   deleteProjectCopy: (path: string) => Promise<void>
   listProjectCopies: (sourcePath: string) => Promise<string[]>

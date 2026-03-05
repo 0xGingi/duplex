@@ -10,6 +10,11 @@ import { useTabStore } from '../../stores/useTabStore.ts'
 import type { CliType, Project } from '../../types/index.ts'
 
 const AUTO_BUN_INSTALL_KEY = 'branchAutoRunBunInstall'
+type DirtyCopyBehavior = 'keep' | 'discard' | 'cancel'
+interface DirtyCopyPrompt {
+  branch: string
+  changeCount: number
+}
 
 function formatActionError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error)
@@ -57,6 +62,7 @@ export default function NewTabButton() {
   const [runBunInstall, setRunBunInstall] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dirtyCopyPrompt, setDirtyCopyPrompt] = useState<DirtyCopyPrompt | null>(null)
 
   const project = useAppStore((s) => s.project)
   const setProject = useAppStore((s) => s.setProject)
@@ -74,6 +80,7 @@ export default function NewTabButton() {
   )
 
   const loadRequestRef = useRef(0)
+  const dirtyCopyPromptResolverRef = useRef<((behavior: DirtyCopyBehavior) => void) | null>(null)
 
   const fetchBranches = useCallback(async (targetPath: string): Promise<string[]> => {
     const [gitResult, copiedResult] = await Promise.allSettled([
@@ -173,24 +180,74 @@ export default function NewTabButton() {
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (dirtyCopyPromptResolverRef.current) {
+        dirtyCopyPromptResolverRef.current('cancel')
+        dirtyCopyPromptResolverRef.current = null
+      }
+    }
+  }, [])
+
+  const resolveDirtyCopyPrompt = useCallback((behavior: DirtyCopyBehavior) => {
+    const resolve = dirtyCopyPromptResolverRef.current
+    dirtyCopyPromptResolverRef.current = null
+    setDirtyCopyPrompt(null)
+    resolve?.(behavior)
+  }, [])
+
+  const promptDirtyCopyBehavior = useCallback((targetProject: Project, changeCount: number): Promise<DirtyCopyBehavior> => {
+    if (dirtyCopyPromptResolverRef.current) {
+      dirtyCopyPromptResolverRef.current('cancel')
+    }
+
+    return new Promise<DirtyCopyBehavior>((resolve) => {
+      dirtyCopyPromptResolverRef.current = resolve
+      setDirtyCopyPrompt({
+        branch: targetProject.branch,
+        changeCount,
+      })
+    })
+  }, [])
+
+  const chooseDirtyCopyBehavior = useCallback(async (targetProject: Project): Promise<DirtyCopyBehavior> => {
+    try {
+      const status = await window.electronAPI.getGitStatus(targetProject.path)
+      if (status.changes.length === 0) return 'keep'
+      return await promptDirtyCopyBehavior(targetProject, status.changes.length)
+    } catch {
+      // If status check fails, fall back to current behavior.
+      return 'keep'
+    }
+  }, [promptDirtyCopyBehavior])
+
   const openBranchTab = async (branch: string, cli: CliType) => {
     if (!project || !branch) return
 
-    setLoading(true)
     setError('')
+    const existingTab = tabs.find((tab) => tab.projectId === project.id && tab.branch === branch)
+    if (existingTab) {
+      setActiveTab(existingTab.id)
+      setIsOpen(false)
+      return
+    }
 
+    const isMainBranch = branch === project.branch
+    let discardUncommittedChangesInCopy = false
+    if (!isMainBranch) {
+      const behavior = await chooseDirtyCopyBehavior(project)
+      if (behavior === 'cancel') return
+      discardUncommittedChangesInCopy = behavior === 'discard'
+    }
+
+    setLoading(true)
     try {
-      const existingTab = tabs.find((tab) => tab.projectId === project.id && tab.branch === branch)
-      if (existingTab) {
-        setActiveTab(existingTab.id)
-        setIsOpen(false)
-        return
-      }
-
-      const isMainBranch = branch === project.branch
       const destPath = isMainBranch
         ? project.path
-        : await window.electronAPI.duplicateProject(project.path, branch, { runBunInstall })
+        : await window.electronAPI.duplicateProject(project.path, branch, {
+            runBunInstall,
+            discardUncommittedChangesInCopy,
+          })
 
       addTab({
         id: crypto.randomUUID(),
@@ -240,7 +297,8 @@ export default function NewTabButton() {
   }
 
   return (
-    <div className="mx-2 p-3 rounded-md bg-bg-tertiary border border-border">
+    <>
+      <div className="mx-2 p-3 rounded-md bg-bg-tertiary border border-border">
       <input
         autoFocus
         value={branchName}
@@ -334,6 +392,38 @@ export default function NewTabButton() {
           {loading ? 'Creating...' : 'Create'}
         </button>
       </div>
-    </div>
+      </div>
+
+      {dirtyCopyPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-md border border-border bg-bg-secondary p-4 shadow-lg">
+            <h3 className="text-sm font-semibold text-text-primary">Uncommitted changes detected</h3>
+            <p className="mt-2 text-xs text-text-secondary">
+              Detected {dirtyCopyPrompt.changeCount} uncommitted {dirtyCopyPrompt.changeCount === 1 ? 'change' : 'changes'} in "{dirtyCopyPrompt.branch}".
+            </p>
+            <p className="mt-2 text-xs text-text-secondary">
+              Keep these changes in the new branch workspace copy?
+            </p>
+            <p className="mt-1 text-[11px] text-text-muted">
+              Clean discards them only in the new copied folder. Your original folder is unchanged.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => resolveDirtyCopyPrompt('keep')}
+                className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-green text-black hover:opacity-90 transition-colors"
+              >
+                Keep
+              </button>
+              <button
+                onClick={() => resolveDirtyCopyPrompt('discard')}
+                className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-red text-white hover:opacity-90 transition-colors"
+              >
+                Clean
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
